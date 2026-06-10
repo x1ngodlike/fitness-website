@@ -41,7 +41,10 @@ export function ChallengeDetailPage() {
   const myStake = parseInt(myStakeInput, 10) || 0;
 
   const handleJoin = async () => {
-    if (!participantName || myStake < MIN_PARTICIPANT_STAKE || !selectedSide) return;
+    if (!participantName || myStake < challenge.minStake || !selectedSide) {
+      setJoinError(`参与金额不能低于${challenge.minStake}元`);
+      return;
+    }
     const ok = await joinChallenge(challenge.id, participantName, myStake, selectedSide);
     if (ok) {
       setShowJoinModal(false);
@@ -371,7 +374,7 @@ export function ChallengeDetailPage() {
                 {challenge.participants.map((participant) => {
                   const isWinner = participant.result === 'win';
                   const amountWon = payout?.winnerAmounts[participant.id] || 0;
-                  const amountLost = participant.result === 'lose' ? actualStake(participant.stake) : 0;
+                  const amountLost = participant.result === 'lose' ? Math.max(participant.stake, challenge.minStake) : 0;
 
                   return (
                     <div
@@ -413,7 +416,7 @@ export function ChallengeDetailPage() {
                           {participant.side === 'support' ? supportLabel : opposeLabel}
                         </span>
                         <span className="px-3 py-1 text-xs font-bold text-orange-400 bg-orange-500/10 rounded-lg border border-orange-500/20">
-                          {actualStake(participant.stake)}元
+                          {participant.stake}元
                         </span>
                       </div>
                     </div>
@@ -457,10 +460,10 @@ export function ChallengeDetailPage() {
             <div className="mb-6">
               <label className="block text-white font-medium mb-3">
                 <Flame className="w-4 h-4 inline mr-2 text-orange-500" />
-                你的押金 <span className="text-neutral-500 text-sm">(最低100)</span>
+                你的押金 <span className="text-neutral-500 text-sm">(最低{challenge.minStake})</span>
               </label>
               <div className="flex flex-wrap gap-2">
-                {[100, 200, 500, 1000, 2000].map((amount) => (
+                {[challenge.minStake, 200, 500, 1000, 2000].filter((v,i,a) => v >= challenge.minStake && a.indexOf(v) === i).map((amount) => (
                   <button
                     key={amount}
                     type="button"

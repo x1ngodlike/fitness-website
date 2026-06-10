@@ -359,7 +359,7 @@ export function AdminPanelPage() {
                                     </button>
                                   </div>
                                 ) : (
-                                  <>
+                                  <div className="flex items-center justify-between gap-2 flex-1">
                                     <div className="flex items-center gap-3 flex-wrap">
                                       <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
                                         {participant.participantName.charAt(0)}
@@ -378,23 +378,25 @@ export function AdminPanelPage() {
                                         <span className="text-xs text-neutral-500">| {participant.joinTime}</span>
                                       )}
                                     </div>
-                                    <button
-                                      onClick={() => startEditParticipant(challenge.id, participant)}
-                                      className="p-2 hover:bg-neutral-700 text-neutral-400 rounded-lg transition-colors flex-shrink-0"
-                                    >
-                                      <Edit2 className="w-4 h-4" />
-                                    </button>
-                                    <button
-                                      onClick={async () => {
-                                        if (confirm(`确定要删除参与者「${participant.participantName}」吗？此操作不可撤销。`)) {
-                                          await deleteParticipant(challenge.id, participant.id);
-                                        }
-                                      }}
-                                      className="p-2 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors flex-shrink-0"
-                                    >
-                                      <UserX className="w-4 h-4" />
-                                    </button>
-                                  </>
+                                    <div className="flex items-center gap-2">
+                                      <button
+                                        onClick={() => startEditParticipant(challenge.id, participant)}
+                                        className="p-2 hover:bg-neutral-700 text-neutral-400 rounded-lg transition-colors flex-shrink-0"
+                                      >
+                                        <Edit2 className="w-4 h-4" />
+                                      </button>
+                                      <button
+                                        onClick={async () => {
+                                          if (confirm(`确定要删除参与者「${participant.participantName}」吗？此操作不可撤销。`)) {
+                                            await deleteParticipant(challenge.id, participant.id);
+                                          }
+                                        }}
+                                        className="p-2 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors flex-shrink-0"
+                                      >
+                                        <UserX className="w-4 h-4" />
+                                      </button>
+                                    </div>
+                                  </div>
                                 )}
                               </div>
                             );
