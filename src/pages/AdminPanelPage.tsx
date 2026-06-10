@@ -65,6 +65,27 @@ export function AdminPanelPage() {
     });
   };
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('image', file);
+
+    try {
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      const result = await response.json();
+      if (result.url) {
+        setEditFormData((prev) => ({ ...prev, coverImage: result.url }));
+      }
+    } catch (error) {
+      console.error('Image upload failed:', error);
+    }
+  };
+
   const saveEdit = async () => {
     if (editingChallenge) {
       await updateChallenge(editingChallenge, {
@@ -183,12 +204,19 @@ export function AdminPanelPage() {
                         />
                       </div>
                       <div className="md:col-span-2">
-                        <label className="text-sm text-neutral-400 mb-1 block">封面图片URL</label>
+                        <label className="text-sm text-neutral-400 mb-1 block">封面图片</label>
                         <input
                           type="text"
                           value={editFormData.coverImage}
                           onChange={(e) => setEditFormData({ ...editFormData, coverImage: e.target.value })}
-                          className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
+                          className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white focus:outline-none focus:border-orange-500 mb-2"
+                          placeholder="图片URL或点击下方按钮上传"
+                        />
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageUpload}
+                          className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg cursor-pointer transition-colors"
                         />
                       </div>
                       <div>
