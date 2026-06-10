@@ -55,6 +55,7 @@ interface ChallengeStore {
   joinChallenge: (challengeId: string, participantName: string, stake: number, side: 'support' | 'oppose') => Promise<boolean>;
   setChallengeResult: (challengeId: string, hostResult: 'success' | 'failed') => Promise<void>;
   updateParticipant: (challengeId: string, participantId: string, updates: Partial<Participant>) => Promise<void>;
+  deleteParticipant: (challengeId: string, participantId: string) => Promise<void>;
   getChallengeById: (id: string) => Challenge | undefined;
 }
 
@@ -227,6 +228,21 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
       challenges: s.challenges.map((c) =>
         c.id === challengeId
           ? { ...c, participants: c.participants.map((p) => p.id === participantId ? { ...p, ...updates } : p) }
+          : c
+      ),
+    }));
+    if (get().envMode === 'test') return;
+    try {
+      const latest = get().challenges.find((c) => c.id === challengeId);
+      if (latest) await http.put(`/challenges/${challengeId}`, latest);
+    } catch (e) { console.error(e); }
+  },
+
+  deleteParticipant: async (challengeId, participantId) => {
+    set((s) => ({
+      challenges: s.challenges.map((c) =>
+        c.id === challengeId
+          ? { ...c, participants: c.participants.filter((p) => p.id !== participantId) }
           : c
       ),
     }));
