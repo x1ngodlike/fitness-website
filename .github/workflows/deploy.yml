@@ -1,0 +1,64 @@
+name: Build & Deploy to Unraid
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:   # 手动触发
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Deploy to Unraid via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.UNRAID_HOST }}
+          username: ${{ secrets.UNRAID_USER }}
+          key: ${{ secrets.UNRAID_SSH_KEY }}
+          port: ${{ secrets.UNRAID_SSH_PORT || '22' }}
+          script_stop: true
+          command: |
+            set -e
+
+            # 切换到源码目录（不存在则 clone）
+            APP_DIR="/mnt/user/appdata/fitness-website-src"
+            if [ ! -d "$APP_DIR/.git" ]; then
+              echo ">>> Cloning repository..."
+              git clone https://github.com/${{ secrets.GITHUB_REPO }}.git "$APP_DIR"
+            fi
+
+            cd "$APP_DIR"
+
+            # 拉取最新代码
+            echo ">>> Pulling latest code..."
+            git fetch origin main
+            git reset --hard origin/main
+
+            # 停止旧容器、删除旧镜像（避免占空间）
+            echo ">>> Stopping old container..."
+            docker rm -f fitness-website 2>/dev/null || true
+
+            # 重新构建并启动
+            echo ">>> Building Docker image..."
+            docker build -t fitness-website:latest .
+
+            # 创建数据目录（如果不存在）
+            mkdir -p /mnt/user/appdata/fitness-website
+
+            # 启动新容器
+            echo ">>> Starting container..."
+            docker run -d \
+              --name fitness-website \
+              --restart unless-stopped \
+              -e ADMIN_PASSWORD=159357 \
+              -v /mnt/user/appdata/fitness-website:/data \
+              -p 5935:3000 \
+              fitness-website:latest
+
+            echo ">>> Deploy complete!"
+            docker ps --filter name=fitness-website --format "{{.Names}} {{.Status}}"
