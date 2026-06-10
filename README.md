@@ -1,57 +1,78 @@
-# React + TypeScript + Vite
+# 健康星球 - 群健康挑战赛
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+一个基于 React + TypeScript + Vite 的健康挑战管理平台。
 
-Currently, two official plugins are available:
+## 功能特性
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- 🎯 创建和管理健康挑战
+- 👥 用户参与挑战（支持/反对）
+- 🏆 挑战结果确认与奖金分配
+- 🔐 管理员面板（编辑、封档、删除挑战）
+- 📊 进度条显示挑战剩余时间
+- 🌐 测试环境与正式环境切换
 
-## Expanding the ESLint configuration
+## 技术栈
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- **前端**: React 18 + TypeScript + Vite
+- **样式**: Tailwind CSS 3
+- **状态管理**: Zustand
+- **路由**: React Router DOM
+- **后端**: Express + JSON 文件存储
+- **部署**: Docker
 
-```js
-export default tseslint.config({
-  extends: [
-    // Remove ...tseslint.configs.recommended and replace with this
-    ...tseslint.configs.recommendedTypeChecked,
-    // Alternatively, use this for stricter rules
-    ...tseslint.configs.strictTypeChecked,
-    // Optionally, add this for stylistic rules
-    ...tseslint.configs.stylisticTypeChecked,
-  ],
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
+## 快速开始
+
+### 本地开发
+
+```bash
+# 安装依赖
+npm install
+
+# 启动开发服务器
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### 构建生产版本
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default tseslint.config({
-  extends: [
-    // other configs...
-    // Enable lint rules for React
-    reactX.configs['recommended-typescript'],
-    // Enable lint rules for React DOM
-    reactDom.configs.recommended,
-  ],
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
+```bash
+npm run build
 ```
+
+### Docker 部署
+
+```bash
+# 构建并启动容器
+./deploy/build.sh
+```
+
+## 项目结构
+
+```
+├── src/
+│   ├── components/     # 组件
+│   ├── pages/         # 页面
+│   ├── store/         # 状态管理
+│   ├── types/         # TypeScript 类型定义
+│   └── data/          # 模拟数据
+├── deploy/
+│   ├── backend/       # 后端服务
+│   └── build.sh       # 一键构建脚本
+├── public/            # 静态资源
+└── Dockerfile         # 容器化配置
+```
+
+## 环境变量
+
+| 变量名 | 说明 | 默认值 |
+|--------|------|--------|
+| ADMIN_PASSWORD | 管理员密码 | 159357 |
+| PORT | 服务端口 | 3000 |
+| DATA_DIR | 数据存储目录 | ./data |
+
+## 管理员登录
+
+密码：`159357`
+
+## License
+
+MIT

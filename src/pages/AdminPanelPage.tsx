@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Shield, Edit2, CheckCircle, X, Lock, Unlock, Users, Save } from 'lucide-react';
+import { Shield, Edit2, CheckCircle, X, Lock, Unlock, Users, Save, Trash2 } from 'lucide-react';
 import { useChallengeStore } from '../store/challengeStore';
 import { Challenge, Participant } from '../types';
 
@@ -19,6 +19,7 @@ export function AdminPanelPage() {
   const toggleBlock = useChallengeStore((state) => state.toggleBlock);
   const setChallengeResult = useChallengeStore((state) => state.setChallengeResult);
   const updateParticipant = useChallengeStore((state) => state.updateParticipant);
+  const deleteChallenge = useChallengeStore((state) => state.deleteChallenge);
 
   const [editingChallenge, setEditingChallenge] = useState<string | null>(null);
   const [editFormData, setEditFormData] = useState({
@@ -397,6 +398,17 @@ export function AdminPanelPage() {
                           </button>
                         </>
                       )}
+                      <button
+                        onClick={async () => {
+                          if (confirm(`确定要删除挑战「${challenge.theme}」吗？此操作不可撤销。`)) {
+                            await deleteChallenge(challenge.id);
+                          }
+                        }}
+                        className="flex items-center gap-2 px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-all"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        删除挑战
+                      </button>
                     </div>
                   </div>
                 )}

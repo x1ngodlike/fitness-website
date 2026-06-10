@@ -85,6 +85,14 @@ app.put('/api/challenges/:id', (req, res) => {
   res.json(updated);
 });
 
+app.delete('/api/challenges/:id', (req, res) => {
+  const idx = db.challenges.findIndex((c) => c.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'not found' });
+  const deleted = db.challenges.splice(idx, 1)[0];
+  saveDB(db);
+  res.json({ ok: true, deleted });
+});
+
 app.post('/api/admin-login', (req, res) => {
   const ok = String(req.body?.password || '') === ADMIN_PASSWORD;
   res.json({ ok });

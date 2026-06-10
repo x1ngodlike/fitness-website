@@ -227,5 +227,15 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
     } catch (e) { console.error(e); }
   },
 
+  deleteChallenge: async (challengeId) => {
+    set((s) => ({
+      challenges: s.challenges.filter((c) => c.id !== challengeId),
+    }));
+    if (get().envMode === 'test') return;
+    try {
+      await http.delete(`/challenges/${challengeId}`);
+    } catch (e) { console.error(e); }
+  },
+
   getChallengeById: (id) => get().challenges.find((c) => c.id === id),
 }));
