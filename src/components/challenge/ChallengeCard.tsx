@@ -47,6 +47,16 @@ export function ChallengeCard({ challenge }: ChallengeCardProps) {
     return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
   };
 
+  const progressPercent = () => {
+    const start = new Date(challenge.startDate).getTime();
+    const end = new Date(challenge.endDate).getTime();
+    const now = Date.now();
+    const totalDays = Math.max(1, (end - start) / (1000 * 60 * 60 * 24));
+    const elapsedDays = Math.max(0, (now - start) / (1000 * 60 * 60 * 24));
+    const percent = (elapsedDays / totalDays) * 100;
+    return Math.min(100, Math.max(0, percent));
+  };
+
   return (
     <Link
       to={`/challenge/${challenge.id}`}
@@ -101,7 +111,7 @@ export function ChallengeCard({ challenge }: ChallengeCardProps) {
             <div className="mt-1.5 h-1 bg-neutral-800 rounded-full overflow-hidden">
               <div
                 className="h-full bg-gradient-to-r from-orange-500 to-orange-400 rounded-full transition-all"
-                style={{ width: `${Math.min(100, Math.max(5, (daysLeft() / 30) * 100))}%` }}
+                style={{ width: `${progressPercent()}%` }}
               />
             </div>
           </div>

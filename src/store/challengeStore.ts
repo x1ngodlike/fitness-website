@@ -66,7 +66,8 @@ const saveMeta = (payload: unknown) => {
 export const useChallengeStore = create<ChallengeStore>((set, get) => ({
   challenges: [],
   isAdminAuthenticated: meta.isAdminAuthenticated === true,
-  envMode: meta.envMode === 'test' ? 'test' : 'production',
+  // 本地开发环境默认进入测试模式（避免需要后端API），生产环境默认正式模式
+  envMode: import.meta.env.DEV ? 'test' : (meta.envMode === 'test' ? 'test' : 'production'),
 
   // —— 启动时拉取所有挑战（正式环境走后端，测试环境走本地 mockData）——
   init: async () => {
