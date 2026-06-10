@@ -20,6 +20,7 @@ export function CreateChallengePage() {
   });
 
   const [coverPreview, setCoverPreview] = useState('');
+  const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isAdminAuthenticated) {
@@ -45,16 +46,25 @@ export function CreateChallengePage() {
     );
   }
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const base64String = event.target?.result as string;
-        setFormData({ ...formData, coverImage: base64String });
-        setCoverPreview(base64String);
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+    setUploading(true);
+    try {
+      const formDataUpload = new FormData();
+      formDataUpload.append('image', file);
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formDataUpload,
+      });
+      if (!res.ok) throw new Error('Upload failed');
+      const data = await res.json();
+      setFormData({ ...formData, coverImage: data.url });
+      setCoverPreview(data.url);
+    } catch (err) {
+      alert('图片上传失败：' + (err as Error).message);
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -110,10 +120,11 @@ export function CreateChallengePage() {
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="w-full px-4 py-3 bg-neutral-800 border-2 border-dashed border-neutral-700 rounded-xl text-neutral-400 hover:border-orange-500 hover:text-orange-400 transition-colors flex items-center justify-center gap-2"
+                  disabled={uploading}
+                  className="w-full px-4 py-3 bg-neutral-800 border-2 border-dashed border-neutral-700 rounded-xl text-neutral-400 hover:border-orange-500 hover:text-orange-400 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   <Image className="w-5 h-5" />
-                  点击上传本地图片
+                  {uploading ? '上传中...' : '点击上传本地图片'}
                 </button>
                 <input
                   ref={fileInputRef}

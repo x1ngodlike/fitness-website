@@ -32,6 +32,13 @@ const http = {
     if (!res.ok) throw new Error(`PUT ${path} failed: ${res.status}`);
     return res.json() as Promise<T>;
   },
+  async delete<T>(path: string): Promise<T> {
+    const res = await fetch(API_BASE + path, {
+      method: 'DELETE',
+    });
+    if (!res.ok) throw new Error(`DELETE ${path} failed: ${res.status}`);
+    return res.json() as Promise<T>;
+  },
 };
 
 interface ChallengeStore {
