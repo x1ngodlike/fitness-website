@@ -101,7 +101,7 @@ export function ChallengeCard({ challenge }: ChallengeCardProps) {
             <div className="mt-1.5 h-1 bg-neutral-800 rounded-full overflow-hidden">
               <div
                 className="h-full bg-gradient-to-r from-orange-500 to-orange-400 rounded-full transition-all"
-                style={{ width: `${Math.max(10, 100 - (daysLeft() / 30) * 100)}%` }}
+                style={{ width: `${Math.min(100, Math.max(5, (daysLeft() / 30) * 100))}%` }}
               />
             </div>
           </div>
