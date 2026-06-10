@@ -37,7 +37,6 @@ export function ChallengeDetailPage() {
 
   const MIN_PARTICIPANT_STAKE = 100;
 
-  const actualStake = (stake: number) => Math.max(stake, challenge.minStake);
   const myStake = parseInt(myStakeInput, 10) || 0;
 
   const handleJoin = async () => {
@@ -101,8 +100,8 @@ export function ChallengeDetailPage() {
   const totalCount = challenge.participants.length;
   const supportCount = challenge.participants.filter(p => p.side === 'support').length;
   const opposeCount = challenge.participants.filter(p => p.side === 'oppose').length;
-  const supportStakes = challenge.participants.filter(p => p.side === 'support').reduce((sum, p) => sum + actualStake(p.stake), 0);
-  const opposeStakes = challenge.participants.filter(p => p.side === 'oppose').reduce((sum, p) => sum + actualStake(p.stake), 0);
+  const supportStakes = challenge.participants.filter(p => p.side === 'support').reduce((sum, p) => sum + p.stake, 0);
+  const opposeStakes = challenge.participants.filter(p => p.side === 'oppose').reduce((sum, p) => sum + p.stake, 0);
 
   // 奖池计算
   const calculatePayout = () => {
@@ -123,8 +122,8 @@ export function ChallengeDetailPage() {
       };
     }
 
-    const totalWinnerStakes = winners.reduce((sum, p) => sum + actualStake(p.stake), 0);
-    const totalLoserStakes = losers.reduce((sum, p) => sum + actualStake(p.stake), 0);
+    const totalWinnerStakes = winners.reduce((sum, p) => sum + p.stake, 0);
+    const totalLoserStakes = losers.reduce((sum, p) => sum + p.stake, 0);
 
     const hostSuccess = winners.some(p => p.side === 'support');
 
@@ -149,7 +148,7 @@ export function ChallengeDetailPage() {
 
     const winnerAmounts: Record<string, number> = {};
     winners.forEach((w) => {
-      const ratio = actualStake(w.stake) / totalWinnerStakes;
+      const ratio = totalWinnerStakes > 0 ? w.stake / totalWinnerStakes : 0;
       winnerAmounts[w.id] = Math.floor(totalPayout * ratio);
     });
 

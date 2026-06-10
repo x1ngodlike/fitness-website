@@ -1,14 +1,18 @@
 import { Challenge } from '../types';
 
+const now = Date.now();
+const day = 86400000;
+
 export const mockChallenges: Challenge[] = [
+  // 1. 进行中的挑战（7/30天）- 底仓200
   {
     id: 'mock-1',
     theme: '30天俯卧撑挑战',
     goal: '每天完成 50 个俯卧撑，连续 30 天不间断',
     hostName: '张伟',
     coverImage: '',
-    startDate: new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10),
-    endDate: new Date(Date.now() + 23 * 86400000).toISOString().slice(0, 10),
+    startDate: new Date(now - 7 * day).toISOString().slice(0, 10),
+    endDate: new Date(now + 23 * day).toISOString().slice(0, 10),
     maxPayout: 500,
     minStake: 200,
     status: 'active',
@@ -20,7 +24,8 @@ export const mockChallenges: Challenge[] = [
         stake: 200,
         side: 'support',
         result: 'pending',
-        joinedAt: Date.now() - 5 * 86400000,
+        createdAt: now - 5 * day,
+        joinTime: new Date(now - 5 * day).toISOString().slice(0, 10),
       },
       {
         id: 'mock-p-2',
@@ -28,9 +33,243 @@ export const mockChallenges: Challenge[] = [
         stake: 300,
         side: 'oppose',
         result: 'pending',
-        joinedAt: Date.now() - 3 * 86400000,
+        createdAt: now - 3 * day,
+        joinTime: new Date(now - 3 * day).toISOString().slice(0, 10),
+      },
+      {
+        id: 'mock-p-3',
+        participantName: '阿明',
+        stake: 500,
+        side: 'support',
+        result: 'pending',
+        createdAt: now - 2 * day,
+        joinTime: new Date(now - 2 * day).toISOString().slice(0, 10),
       },
     ],
-    createdAt: Date.now() - 10 * 86400000,
+    createdAt: now - 10 * day,
+  },
+
+  // 2. 进行中的挑战 - 底仓100，封档状态
+  {
+    id: 'mock-2',
+    theme: '21天早起挑战',
+    goal: '每天早上6点前起床打卡，连续21天',
+    hostName: '早起达人',
+    coverImage: '',
+    startDate: new Date(now - 10 * day).toISOString().slice(0, 10),
+    endDate: new Date(now + 11 * day).toISOString().slice(0, 10),
+    maxPayout: 1000,
+    minStake: 100,
+    status: 'active',
+    isBlocked: true, // 封档中
+    participants: [
+      {
+        id: 'mock-p-4',
+        participantName: '小张',
+        stake: 100,
+        side: 'support',
+        result: 'pending',
+        createdAt: now - 8 * day,
+        joinTime: new Date(now - 8 * day).toISOString().slice(0, 10),
+      },
+      {
+        id: 'mock-p-5',
+        participantName: '小红',
+        stake: 200,
+        side: 'oppose',
+        result: 'pending',
+        createdAt: now - 5 * day,
+        joinTime: new Date(now - 5 * day).toISOString().slice(0, 10),
+      },
+    ],
+    createdAt: now - 12 * day,
+  },
+
+  // 3. 已结束 - 挑战者成功，支持者赢
+  {
+    id: 'mock-3',
+    theme: '100天跑步挑战',
+    goal: '每天跑步3公里，100天内完成300公里',
+    hostName: '跑步爱好者',
+    coverImage: '',
+    startDate: new Date(now - 105 * day).toISOString().slice(0, 10),
+    endDate: new Date(now - 5 * day).toISOString().slice(0, 10),
+    maxPayout: 2000,
+    minStake: 200,
+    status: 'completed',
+    isBlocked: false,
+    participants: [
+      {
+        id: 'mock-p-6',
+        participantName: '健身达人',
+        stake: 500,
+        side: 'support',
+        result: 'win', // 赢了
+        createdAt: now - 100 * day,
+        joinTime: new Date(now - 100 * day).toISOString().slice(0, 10),
+      },
+      {
+        id: 'mock-p-7',
+        participantName: '小明',
+        stake: 300,
+        side: 'support',
+        result: 'win',
+        createdAt: now - 95 * day,
+        joinTime: new Date(now - 95 * day).toISOString().slice(0, 10),
+      },
+      {
+        id: 'mock-p-8',
+        participantName: '小刘',
+        stake: 400,
+        side: 'oppose',
+        result: 'lose', // 输了
+        createdAt: now - 90 * day,
+        joinTime: new Date(now - 90 * day).toISOString().slice(0, 10),
+      },
+      {
+        id: 'mock-p-9',
+        participantName: '小陈',
+        stake: 600,
+        side: 'oppose',
+        result: 'lose',
+        createdAt: now - 85 * day,
+        joinTime: new Date(now - 85 * day).toISOString().slice(0, 10),
+      },
+    ],
+    createdAt: now - 108 * day,
+  },
+
+  // 4. 已结束 - 挑战者失败，反对者赢
+  {
+    id: 'mock-4',
+    theme: '30天戒酒挑战',
+    goal: '连续30天不饮酒',
+    hostName: '健康生活',
+    coverImage: '',
+    startDate: new Date(now - 35 * day).toISOString().slice(0, 10),
+    endDate: new Date(now - 3 * day).toISOString().slice(0, 10),
+    maxPayout: 800,
+    minStake: 150,
+    status: 'completed',
+    isBlocked: false,
+    participants: [
+      {
+        id: 'mock-p-10',
+        participantName: '小周',
+        stake: 200,
+        side: 'support',
+        result: 'lose',
+        createdAt: now - 30 * day,
+        joinTime: new Date(now - 30 * day).toISOString().slice(0, 10),
+      },
+      {
+        id: 'mock-p-11',
+        participantName: '老李',
+        stake: 300,
+        side: 'oppose',
+        result: 'win',
+        createdAt: now - 28 * day,
+        joinTime: new Date(now - 28 * day).toISOString().slice(0, 10),
+      },
+    ],
+    createdAt: now - 38 * day,
+  },
+
+  // 5. 待确认状态 - 已过期但未结算
+  {
+    id: 'mock-5',
+    theme: '7天阅读挑战',
+    goal: '7天内读完一本书',
+    hostName: '书虫',
+    coverImage: '',
+    startDate: new Date(now - 8 * day).toISOString().slice(0, 10),
+    endDate: new Date(now - 1 * day).toISOString().slice(0, 10),
+    maxPayout: 300,
+    minStake: 100,
+    status: 'active', // 仍然是active但已过期，待确认
+    isBlocked: false,
+    participants: [
+      {
+        id: 'mock-p-12',
+        participantName: '读书人',
+        stake: 100,
+        side: 'support',
+        result: 'pending',
+        createdAt: now - 6 * day,
+        joinTime: new Date(now - 6 * day).toISOString().slice(0, 10),
+      },
+    ],
+    createdAt: now - 9 * day,
+  },
+
+  // 6. 新挑战 - 刚开始，暂无参与者
+  {
+    id: 'mock-6',
+    theme: '14天减肥挑战',
+    goal: '14天内减重2公斤',
+    hostName: '健身教练',
+    coverImage: '',
+    startDate: new Date(now - 1 * day).toISOString().slice(0, 10),
+    endDate: new Date(now + 13 * day).toISOString().slice(0, 10),
+    maxPayout: 600,
+    minStake: 200,
+    status: 'active',
+    isBlocked: false,
+    participants: [], // 暂无参与者
+    createdAt: now - 2 * day,
+  },
+
+  // 7. 大额挑战 - 底仓500
+  {
+    id: 'mock-7',
+    theme: '60天健身挑战',
+    goal: '每周健身4次，60天内完成24次训练',
+    hostName: '私人教练',
+    coverImage: '',
+    startDate: new Date(now - 15 * day).toISOString().slice(0, 10),
+    endDate: new Date(now + 45 * day).toISOString().slice(0, 10),
+    maxPayout: 5000,
+    minStake: 500,
+    status: 'active',
+    isBlocked: false,
+    participants: [
+      {
+        id: 'mock-p-13',
+        participantName: '运动爱好者',
+        stake: 1000,
+        side: 'support',
+        result: 'pending',
+        createdAt: now - 10 * day,
+        joinTime: new Date(now - 10 * day).toISOString().slice(0, 10),
+      },
+      {
+        id: 'mock-p-14',
+        participantName: '健身新手',
+        stake: 500,
+        side: 'oppose',
+        result: 'pending',
+        createdAt: now - 8 * day,
+        joinTime: new Date(now - 8 * day).toISOString().slice(0, 10),
+      },
+      {
+        id: 'mock-p-15',
+        participantName: '跑步达人',
+        stake: 2000,
+        side: 'support',
+        result: 'pending',
+        createdAt: now - 5 * day,
+        joinTime: new Date(now - 5 * day).toISOString().slice(0, 10),
+      },
+      {
+        id: 'mock-p-16',
+        participantName: '瑜伽爱好者',
+        stake: 800,
+        side: 'oppose',
+        result: 'pending',
+        createdAt: now - 3 * day,
+        joinTime: new Date(now - 3 * day).toISOString().slice(0, 10),
+      },
+    ],
+    createdAt: now - 18 * day,
   },
 ];
