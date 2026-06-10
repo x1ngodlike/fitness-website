@@ -40,17 +40,13 @@ function saveDB(db) {
   }
 }
 
-// 在内存中维护 challenges 数组
 let db = loadDB();
 
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
-// 健康检查
 app.get('/api/health', (_req, res) => res.json({ ok: true, count: db.challenges.length }));
-
-// 列表 + 创建
 app.get('/api/challenges', (_req, res) => res.json(db.challenges));
 
 app.post('/api/challenges', (req, res) => {
@@ -75,7 +71,6 @@ app.post('/api/challenges', (req, res) => {
   res.status(201).json(newChallenge);
 });
 
-// 更新 / 参与
 app.put('/api/challenges/:id', (req, res) => {
   const idx = db.challenges.findIndex((c) => c.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'not found' });
@@ -90,17 +85,18 @@ app.put('/api/challenges/:id', (req, res) => {
   res.json(updated);
 });
 
-// 管理员登录（简单密码校验）
 app.post('/api/admin-login', (req, res) => {
   const ok = String(req.body?.password || '') === ADMIN_PASSWORD;
   res.json({ ok });
 });
 
-// 静态文件（Vite dist）
-const DIST_DIR = process.env.DIST_DIR || path.join(__dirname, '..', 'frontend-dist');
+// 静态文件（Vite dist）- 修复路径：Dockerfile 把 dist 放到了 /app/frontend-dist
+const DIST_DIR = process.env.DIST_DIR || path.join(__dirname, 'frontend-dist');
+console.log(`[info] Looking for frontend dist at: ${DIST_DIR}`);
 if (fs.existsSync(DIST_DIR)) {
+  const files = fs.readdirSync(DIST_DIR);
+  console.log(`[info] Found ${files.length} files in dist: ${files.join(', ')}`);
   app.use(express.static(DIST_DIR));
-  // React Router 需要 fallback 到 index.html
   app.get('*', (_req, res) => {
     res.sendFile(path.join(DIST_DIR, 'index.html'));
   });
