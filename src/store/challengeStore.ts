@@ -172,6 +172,8 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
     if (challenge.isBlocked) return false;
     if (challenge.status !== 'active') return false;
 
+    const today = new Date();
+    const joinDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     const newParticipant: Participant = {
       id: `participant-${Date.now()}`,
       challengeId,
@@ -180,6 +182,7 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
       side,
       result: 'pending',
       createdAt: Date.now(),
+      joinTime: joinDate,
     };
 
     set((s) => ({

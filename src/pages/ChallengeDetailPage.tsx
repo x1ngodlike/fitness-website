@@ -171,6 +171,14 @@ export function ChallengeDetailPage() {
     return `${month}月${day}日 ${hour}:${minute}`;
   };
 
+  const getParticipantJoinTime = (participant: { joinTime?: string; createdAt: number }) => {
+    if (participant.joinTime) {
+      const [, month, day] = participant.joinTime.split('-');
+      return `${parseInt(month)}月${parseInt(day)}日`;
+    }
+    return formatTime(participant.createdAt);
+  };
+
   return (
     <div className="min-h-screen bg-neutral-950">
       <div className="max-w-3xl mx-auto px-6 pt-24 pb-16">
@@ -377,7 +385,7 @@ export function ChallengeDetailPage() {
                         <div>
                           <p className="text-white text-sm font-medium">{participant.participantName}</p>
                           <p className="text-xs text-neutral-500">
-                            {formatTime(participant.createdAt)}
+                            {getParticipantJoinTime(participant)}
                           </p>
                         </div>
                       </div>
