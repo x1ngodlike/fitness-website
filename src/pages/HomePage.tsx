@@ -33,9 +33,15 @@ export function HomePage() {
     return matchesSearch && matchesStatus;
   });
 
-  const activeChallenges = filteredChallenges.filter((c) => c.effectiveStatus === 'active');
-  const pendingChallenges = filteredChallenges.filter((c) => c.effectiveStatus === 'pending');
-  const completedChallenges = filteredChallenges.filter((c) => c.effectiveStatus === 'completed');
+  const activeChallenges = filteredChallenges
+    .filter((c) => c.effectiveStatus === 'active')
+    .sort((a, b) => new Date(a.endDate).getTime() - new Date(b.endDate).getTime());
+  const pendingChallenges = filteredChallenges
+    .filter((c) => c.effectiveStatus === 'pending')
+    .sort((a, b) => new Date(a.endDate).getTime() - new Date(b.endDate).getTime());
+  const completedChallenges = filteredChallenges
+    .filter((c) => c.effectiveStatus === 'completed')
+    .sort((a, b) => new Date(b.endDate).getTime() - new Date(a.endDate).getTime());
 
   const statusTabs: { label: string; value: ChallengeStatus }[] = [
     { label: '全部', value: 'all' },
@@ -130,15 +136,22 @@ export function HomePage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredChallenges.map((challenge, index) => (
-              <div
-                key={challenge.id}
-                className="animate-fade-in-up"
-                style={{ animationDelay: `${index * 100}ms` }}
-              >
-                <ChallengeCard challenge={challenge} />
-              </div>
-            ))}
+            {filteredChallenges
+              .sort((a, b) => {
+                if (a.effectiveStatus === 'completed') {
+                  return new Date(b.endDate).getTime() - new Date(a.endDate).getTime();
+                }
+                return new Date(a.endDate).getTime() - new Date(b.endDate).getTime();
+              })
+              .map((challenge, index) => (
+                <div
+                  key={challenge.id}
+                  className="animate-fade-in-up"
+                  style={{ animationDelay: `${index * 100}ms` }}
+                >
+                  <ChallengeCard challenge={challenge} />
+                </div>
+              ))}
           </div>
         )}
       </div>
