@@ -1,0 +1,17 @@
+version: "3.8"
+
+services:
+  fitness-website:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: fitness-website
+    restart: unless-stopped
+    environment:
+      - ADMIN_PASSWORD=159357
+      - PORT=3000
+      - DATA_DIR=/data
+    volumes:
+      - /mnt/user/appdata/fitness-website:/data
+    ports:
+      - "5935:3000"
