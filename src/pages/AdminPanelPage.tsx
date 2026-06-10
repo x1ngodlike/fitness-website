@@ -38,6 +38,7 @@ export function AdminPanelPage() {
     participantName: '',
     stake: 0,
     side: 'support' as 'support' | 'oppose',
+    joinTime: '',
   });
 
   const sortedChallenges = useMemo(() => {
@@ -86,6 +87,7 @@ export function AdminPanelPage() {
       participantName: participant.participantName,
       stake: participant.stake,
       side: participant.side,
+      joinTime: participant.joinTime || '',
     });
   };
 
@@ -95,6 +97,7 @@ export function AdminPanelPage() {
         participantName: editParticipantData.participantName,
         stake: editParticipantData.stake,
         side: editParticipantData.side,
+        joinTime: editParticipantData.joinTime,
       });
       setEditingParticipant(null);
     }
@@ -289,13 +292,15 @@ export function AdminPanelPage() {
                                       value={editParticipantData.participantName}
                                       onChange={(e) => setEditParticipantData({ ...editParticipantData, participantName: e.target.value })}
                                       className="px-3 py-2 bg-neutral-700 border border-neutral-600 rounded-lg text-white text-sm focus:outline-none focus:border-orange-500"
+                                      placeholder="姓名"
                                     />
                                     <input
                                       type="number"
-                                      min="10"
+                                      min="100"
                                       value={editParticipantData.stake}
                                       onChange={(e) => setEditParticipantData({ ...editParticipantData, stake: Number(e.target.value) })}
                                       className="w-24 px-3 py-2 bg-neutral-700 border border-neutral-600 rounded-lg text-white text-sm focus:outline-none focus:border-orange-500"
+                                      placeholder="金额"
                                     />
                                     <select
                                       value={editParticipantData.side}
@@ -305,6 +310,12 @@ export function AdminPanelPage() {
                                       <option value="support">白（支持）</option>
                                       <option value="oppose">黑（反对）</option>
                                     </select>
+                                    <input
+                                      type="date"
+                                      value={editParticipantData.joinTime}
+                                      onChange={(e) => setEditParticipantData({ ...editParticipantData, joinTime: e.target.value })}
+                                      className="px-3 py-2 bg-neutral-700 border border-neutral-600 rounded-lg text-white text-sm focus:outline-none focus:border-orange-500"
+                                    />
                                     <button
                                       onClick={saveParticipantEdit}
                                       className="p-2 bg-green-500/20 hover:bg-green-500/30 text-green-400 rounded-lg transition-colors"
@@ -334,6 +345,9 @@ export function AdminPanelPage() {
                                         {participant.side === 'support' ? '白' : '黑'}
                                       </span>
                                       <span className="text-xs text-neutral-500">{participant.stake} 元</span>
+                                      {participant.joinTime && (
+                                        <span className="text-xs text-neutral-500">| {participant.joinTime}</span>
+                                      )}
                                     </div>
                                     <button
                                       onClick={() => startEditParticipant(challenge.id, participant)}

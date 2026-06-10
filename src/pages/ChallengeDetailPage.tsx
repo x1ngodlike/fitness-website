@@ -35,11 +35,13 @@ export function ChallengeDetailPage() {
   const supportLabel = `${hostChar}白`;
   const opposeLabel = `${hostChar}黑`;
 
+  const MIN_PARTICIPANT_STAKE = 100;
+
   const actualStake = (stake: number) => Math.max(stake, challenge.minStake);
   const myStake = parseInt(myStakeInput, 10) || 0;
 
   const handleJoin = async () => {
-    if (!participantName || myStake < challenge.minStake || !selectedSide) return;
+    if (!participantName || myStake < MIN_PARTICIPANT_STAKE || !selectedSide) return;
     const ok = await joinChallenge(challenge.id, participantName, myStake, selectedSide);
     if (ok) {
       setShowJoinModal(false);
@@ -524,9 +526,9 @@ export function ChallengeDetailPage() {
               </button>
               <button
                 onClick={handleJoin}
-                disabled={!participantName || myStake < challenge.minStake || !selectedSide}
+                disabled={!participantName || myStake < MIN_PARTICIPANT_STAKE || !selectedSide}
                 className={`flex-1 py-3 rounded-xl font-bold transition-all ${
-                  participantName && myStake >= challenge.minStake && selectedSide
+                  participantName && myStake >= MIN_PARTICIPANT_STAKE && selectedSide
                     ? 'bg-orange-500 hover:bg-orange-600 text-white'
                     : 'bg-neutral-700 text-neutral-400 cursor-not-allowed'
                 }`}

@@ -6,6 +6,7 @@ export interface Participant {
   side: 'support' | 'oppose'; // support=能, oppose=不能
   result: 'win' | 'lose' | 'pending';
   createdAt: number;
+  joinTime?: string; // 参加时间（格式：YYYY-MM-DD）
 }
 
 export interface Challenge {
