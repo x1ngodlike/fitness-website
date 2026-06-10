@@ -52,8 +52,8 @@ export function ChallengeCard({ challenge }: ChallengeCardProps) {
     const end = new Date(challenge.endDate).getTime();
     const now = Date.now();
     const totalDays = Math.max(1, (end - start) / (1000 * 60 * 60 * 24));
-    const elapsedDays = Math.max(0, (now - start) / (1000 * 60 * 60 * 24));
-    const percent = (elapsedDays / totalDays) * 100;
+    const remainingDays = Math.max(0, (end - now) / (1000 * 60 * 60 * 24));
+    const percent = (remainingDays / totalDays) * 100;
     return Math.min(100, Math.max(0, percent));
   };
 
