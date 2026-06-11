@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { X, Plus, Trash2, Image, ThumbsUp, ThumbsDown, Clock } from 'lucide-react';
 import { Essay, Challenge } from '../../types';
 import { useChallengeStore } from '../../store/challengeStore';
@@ -14,9 +14,11 @@ export function EssayDetailModal({ challenge, onClose }: EssayDetailModalProps) 
   const { essays, addEssay, deleteEssay, isAdminAuthenticated } = useChallengeStore();
   const [showAddModal, setShowAddModal] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
-  const challengeEssays = essays
-    .filter(e => e.challengeId === challenge.id)
-    .sort((a, b) => b.createdAt - a.createdAt) || [];
+  const challengeEssays = useMemo(() => {
+    return essays
+      .filter(e => e.challengeId === challenge.id)
+      .sort((a, b) => b.createdAt - a.createdAt);
+  }, [essays, challenge.id]);
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
