@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Shield, Edit2, CheckCircle, X, Lock, Unlock, Users, Save, Trash2, UserX, Download, Upload, AlertTriangle } from 'lucide-react';
-import { useChallengeStore } from '../store/challengeStore';
+import { useChallengeStore, loadToken } from '../store/challengeStore';
 import { Challenge, Participant } from '../types';
 
 type EffectiveStatus = 'active' | 'pending' | 'completed';
@@ -268,8 +268,9 @@ export function AdminPanelPage() {
     formData.append('image', file);
 
     try {
-      const response = await fetch('/api/upload', {
+      const response = await fetch('/api/admin-upload', {
         method: 'POST',
+        headers: { 'x-api-token': loadToken() || '' },
         body: formData,
       });
       const result = await response.json();

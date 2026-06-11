@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Calendar, Target, Flame, DollarSign, Shield, Upload, Image } from 'lucide-react';
-import { useChallengeStore } from '../store/challengeStore';
+import { useChallengeStore, loadToken } from '../store/challengeStore';
 
 export function CreateChallengePage() {
   const navigate = useNavigate();
@@ -54,8 +54,9 @@ export function CreateChallengePage() {
     try {
       const formDataUpload = new FormData();
       formDataUpload.append('image', file);
-      const res = await fetch('/api/upload', {
+      const res = await fetch('/api/admin-upload', {
         method: 'POST',
+        headers: { 'x-api-token': loadToken() || '' },
         body: formDataUpload,
       });
       if (!res.ok) throw new Error('Upload failed');

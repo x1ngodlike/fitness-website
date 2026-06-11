@@ -24,7 +24,7 @@ const meta: Meta = (() => {
   } catch { return { envMode: 'production' as EnvMode, isAdminAuthenticated: false }; }
 })();
 
-const loadToken = (): string | null => {
+export const loadToken = (): string | null => {
   try {
     return localStorage.getItem(KEY_API_TOKEN);
   } catch { return null; }

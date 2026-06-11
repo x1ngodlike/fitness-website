@@ -156,6 +156,7 @@ function AddEssayModal({ challengeId, hostName, onClose, onSuccess }: AddEssayMo
     setUploading(true);
     const formData = new FormData();
     formData.append('image', file);
+    formData.append('challengeId', challengeId);
 
     try {
       const response = await fetch('/api/upload', {
@@ -191,6 +192,7 @@ function AddEssayModal({ challengeId, hostName, onClose, onSuccess }: AddEssayMo
           setUploading(true);
           const formData = new FormData();
           formData.append('image', file);
+          formData.append('challengeId', challengeId);
 
           fetch('/api/upload', {
             method: 'POST',
