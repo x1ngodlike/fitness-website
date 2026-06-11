@@ -1,12 +1,14 @@
 import { Link } from 'react-router-dom';
-import { Calendar, Users, Lock } from 'lucide-react';
-import { Challenge } from '../../types';
+import { Calendar, Users, Lock, MessageCircle, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { Challenge, Essay } from '../../types';
 
 interface ChallengeCardProps {
   challenge: Challenge;
+  essays: Essay[];
+  onEssayClick: () => void;
 }
 
-export function ChallengeCard({ challenge }: ChallengeCardProps) {
+export function ChallengeCard({ challenge, essays, onEssayClick }: ChallengeCardProps) {
   const isExpired = () => {
     const end = new Date(challenge.endDate).getTime();
     return Date.now() > end;
@@ -62,7 +64,7 @@ export function ChallengeCard({ challenge }: ChallengeCardProps) {
       to={`/challenge/${challenge.id}`}
       className="group block bg-neutral-900 rounded-2xl border border-neutral-800 overflow-hidden hover:border-orange-500/30 transition-all duration-300 hover:shadow-xl hover:shadow-orange-500/5"
     >
-      <div className="relative aspect-[16/9] sm:aspect-[4/3] overflow-hidden">
+      <div className="relative aspect-[16/9] overflow-hidden">
         <img
           src={challenge.coverImage}
           alt={challenge.theme}
@@ -117,6 +119,50 @@ export function ChallengeCard({ challenge }: ChallengeCardProps) {
             </div>
           </div>
         )}
+
+        <div
+          className="mt-2 pt-2 border-t border-neutral-800 cursor-pointer hover:bg-neutral-800/50 -mx-3 sm:-mx-4 px-3 sm:px-4 py-1.5 transition-colors min-h-[56px]"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onEssayClick();
+          }}
+        >
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-full bg-orange-500/10 flex items-center justify-center flex-shrink-0">
+              <MessageCircle className="w-3 h-3 text-orange-500" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-xs text-neutral-500 mb-0.5">最新小作文</div>
+              {essays.length > 0 ? (
+                <div className="flex items-center gap-1.5">
+                  <span className={`px-1.5 py-0.25 text-xs font-bold rounded-full flex-shrink-0 ${
+                    essays[0].sentiment === 'bullish'
+                      ? 'bg-red-500/10 text-red-400'  // 利多 - 红色
+                      : 'bg-green-500/10 text-green-400'  // 利空 - 绿色
+                  }`}>
+                    {essays[0].sentiment === 'bullish' ? (
+                      <span className="flex items-center gap-0.5">
+                        <ThumbsUp className="w-2.5 h-2.5" /> 利多
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-0.5">
+                        <ThumbsDown className="w-2.5 h-2.5" /> 利空
+                      </span>
+                    )}
+                  </span>
+                  <p className="text-xs text-white line-clamp-1 flex-1">
+                    {essays[0].content}
+                  </p>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-neutral-500">暂无小作文</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </Link>
   );

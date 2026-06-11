@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Challenge, Participant } from '../types';
+import { Challenge, Participant, Essay } from '../types';
 import { mockChallenges } from '../data/mockData';
 
 export type EnvMode = 'test' | 'production';
@@ -81,13 +81,14 @@ const http = {
 
 interface ChallengeStore {
   challenges: Challenge[];
+  essays: Essay[];
   isAdminAuthenticated: boolean;
   envMode: EnvMode;
   init: () => Promise<void>;
   authenticateAdmin: (password: string) => Promise<boolean>;
   logoutAdmin: () => void;
   setEnvMode: (mode: EnvMode) => void;
-  addChallenge: (challenge: Omit<Challenge, 'id' | 'createdAt' | 'participants' | 'isBlocked' | 'status'>) => Promise<void>;
+  addChallenge: (challenge: Omit<Challenge, 'id' | 'createdAt' | 'participants' | 'essays' | 'isBlocked' | 'status'>) => Promise<void>;
   updateChallenge: (challengeId: string, updates: Partial<Challenge>) => Promise<void>;
   toggleBlock: (challengeId: string) => Promise<void>;
   joinChallenge: (challengeId: string, participantName: string, stake: number, side: 'support' | 'oppose') => Promise<boolean>;
@@ -96,28 +97,33 @@ interface ChallengeStore {
   deleteParticipant: (challengeId: string, participantId: string) => Promise<void>;
   deleteChallenge: (challengeId: string) => Promise<void>;
   getChallengeById: (id: string) => Challenge | undefined;
+  addEssay: (essay: Omit<Essay, 'id' | 'createdAt'>) => Promise<void>;
+  deleteEssay: (essayId: string) => Promise<void>;
 }
 
 export const useChallengeStore = create<ChallengeStore>((set, get) => ({
   challenges: [],
+  essays: [],
   isAdminAuthenticated: meta.isAdminAuthenticated === true,
   // 本地开发环境默认进入测试模式（避免需要后端API），生产环境默认正式模式
   envMode: import.meta.env.DEV ? 'test' : (meta.envMode === 'test' ? 'test' : 'production'),
 
-  // —— 启动时拉取所有挑战（正式环境走后端，测试环境走本地 mockData）——
+  // —— 启动时拉取所有挑战和小作文（正式环境走后端，测试环境走本地 mockData）——
   init: async () => {
     if (get().envMode === 'test') {
-      set({ challenges: mockChallenges });
+      const allEssays: Essay[] = mockChallenges.flatMap((c) => c.essays || []);
+      set({ challenges: mockChallenges, essays: allEssays });
       return;
     }
     try {
       const list = await http.get<Challenge[]>('/challenges');
-      // json-server 返回的可能是空数组，也可能是 { data: [...] }；兼容两种
       const arr = Array.isArray(list) ? list : ((list as any)?.data ?? []);
-      set({ challenges: arr });
+      const essayList = await http.get<Essay[]>('/essays').catch(() => [] as Essay[]);
+      const essayArr = Array.isArray(essayList) ? essayList : ((essayList as any)?.data ?? []);
+      set({ challenges: arr, essays: essayArr });
     } catch (e) {
       console.error('Failed to load challenges:', e);
-      set({ challenges: [] });
+      set({ challenges: [], essays: [] });
     }
   },
 
@@ -175,6 +181,7 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
       status: 'active',
       isBlocked: false,
       participants: [],
+      essays: [],
       createdAt: Date.now(),
     };
     if (mode === 'test') {
@@ -309,6 +316,7 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
   deleteChallenge: async (challengeId) => {
     set((s) => ({
       challenges: s.challenges.filter((c) => c.id !== challengeId),
+      essays: s.essays.filter((e) => e.challengeId !== challengeId),
     }));
     if (get().envMode === 'test') return;
     try {
@@ -318,4 +326,33 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
   },
 
   getChallengeById: (id) => get().challenges.find((c) => c.id === id),
+
+  addEssay: async (essayData) => {
+    const newEssay: Essay = {
+      ...essayData,
+      id: `essay-${Date.now()}`,
+      createdAt: Date.now(),
+    };
+    
+    set((s) => ({ essays: [...s.essays, newEssay] }));
+    
+    if (get().envMode === 'test') return;
+    try {
+      await http.post('/essays', newEssay);
+    } catch (e) {
+      console.error(e);
+    }
+  },
+
+  deleteEssay: async (essayId) => {
+    set((s) => ({ essays: s.essays.filter((e) => e.id !== essayId) }));
+    
+    if (get().envMode === 'test') return;
+    try {
+      const token = loadToken();
+      await http.delete(`/essays/${essayId}`, token);
+    } catch (e) {
+      console.error(e);
+    }
+  },
 }));

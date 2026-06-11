@@ -22,6 +22,9 @@ const TOKEN_FILE = path.join(DATA_DIR, '.token');
 // 备份目录
 const BACKUP_DIR = path.join(DATA_DIR, 'backups');
 
+// 小作文图片目录（按挑战ID分组）
+const ESSAY_UPLOAD_DIR = path.join(DATA_DIR, 'essay-uploads');
+
 // 加载自定义 Token（如果存在）
 function loadToken() {
   try {
@@ -142,10 +145,13 @@ function restoreFromServerBackup(filename) {
       return { success: false, error: '无效的备份数据' };
     }
     
-    db = { challenges: backupData.data.challenges };
+    db = { 
+      challenges: backupData.data.challenges || [],
+      essays: backupData.data.essays || []
+    };
     saveDB(db);
     
-    return { success: true, count: db.challenges.length, timestamp: backupData.timestamp };
+    return { success: true, challenges: db.challenges.length, essays: db.essays.length, timestamp: backupData.timestamp };
   } catch (e) {
     console.error('Failed to restore backup:', e);
     return { success: false, error: '恢复失败: ' + e.message };
@@ -185,7 +191,7 @@ setTimeout(() => {
 // 启动定时备份
 scheduleDailyBackup();
 
-// 配置文件上传
+// 配置文件上传（封面图）
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, UPLOAD_DIR),
   filename: (_req, file, cb) => {
@@ -203,7 +209,30 @@ const upload = multer({
   },
 });
 
-const defaultData = { challenges: [] };
+// 小作文图片上传配置（按挑战ID分组）
+const essayStorage = multer.diskStorage({
+  destination: (req, _file, cb) => {
+    const challengeId = req.body.challengeId || req.query.challengeId || 'unknown';
+    const challengeDir = path.join(ESSAY_UPLOAD_DIR, challengeId);
+    fs.mkdirSync(challengeDir, { recursive: true });
+    cb(null, challengeDir);
+  },
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname) || '.jpg';
+    const name = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`;
+    cb(null, name);
+  },
+});
+const essayUpload = multer({
+  storage: essayStorage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: (_req, file, cb) => {
+    if (!file.mimetype.startsWith('image/')) return cb(new Error('Only images allowed'));
+    cb(null, true);
+  },
+});
+
+const defaultData = { challenges: [], essays: [] };
 function loadDB() {
   try {
     if (!fs.existsSync(DB_FILE)) {
@@ -213,10 +242,11 @@ function loadDB() {
     const raw = fs.readFileSync(DB_FILE, 'utf-8');
     const parsed = JSON.parse(raw);
     if (!parsed.challenges) parsed.challenges = [];
+    if (!parsed.essays) parsed.essays = [];
     return parsed;
   } catch (e) {
     console.error('DB load error:', e);
-    return { challenges: [] };
+    return { challenges: [], essays: [] };
   }
 }
 
@@ -236,8 +266,11 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
-// 静态托管上传的图片
+// 静态托管上传的图片（封面图）
 app.use('/uploads', express.static(UPLOAD_DIR));
+
+// 静态托管小作文图片（按挑战ID分组）
+app.use('/essay-uploads', express.static(ESSAY_UPLOAD_DIR));
 
 // API Token 验证中间件
 function requireToken(req, res, next) {
@@ -315,9 +348,12 @@ app.post('/api/restore', requireToken, (req, res) => {
   }
   
   try {
-    db = { challenges: data.challenges };
+    db = { 
+      challenges: data.challenges || [],
+      essays: data.essays || []
+    };
     saveDB(db);
-    res.json({ ok: true, count: db.challenges.length });
+    res.json({ ok: true, challenges: db.challenges.length, essays: db.essays.length });
   } catch (e) {
     console.error('Restore error:', e);
     res.status(500).json({ error: 'Restore failed' });
@@ -394,14 +430,90 @@ app.get('/api/backup/download/:filename', requireToken, (req, res) => {
   res.sendFile(filePath);
 });
 
-// 图片上传（需要 Token）
-app.post('/api/upload', requireToken, upload.single('image'), (req, res) => {
+// 图片上传（公开，用于小作文）
+app.post('/api/upload', essayUpload.single('image'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'no file' });
+  const challengeId = req.body.challengeId || req.query.challengeId || 'unknown';
+  res.json({ url: `/essay-uploads/${challengeId}/${req.file.filename}` });
+});
+
+// 图片上传（需要 Token，管理员专用）
+app.post('/api/admin-upload', requireToken, upload.single('image'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'no file' });
   res.json({ url: `/uploads/${req.file.filename}` });
 });
 
 // 列表（公开）
-app.get('/api/challenges', (_req, res) => res.json(db.challenges));
+app.get('/api/challenges', (_req, res) => {
+  const challengesWithEssays = db.challenges.map(challenge => ({
+    ...challenge,
+    essays: db.essays.filter(e => e.challengeId === challenge.id).sort((a, b) => b.createdAt - a.createdAt)
+  }));
+  res.json(challengesWithEssays);
+});
+
+// 获取所有小作文（公开）
+app.get('/api/essays', (_req, res) => {
+  const essays = db.essays
+    .sort((a, b) => b.createdAt - a.createdAt);
+  res.json(essays);
+});
+
+// 获取挑战的小作文列表（公开）
+app.get('/api/challenges/:id/essays', (req, res) => {
+  const essays = db.essays
+    .filter(e => e.challengeId === req.params.id)
+    .sort((a, b) => b.createdAt - a.createdAt);
+  res.json(essays);
+});
+
+// 创建小作文（公开，任何人都能添加）
+app.post('/api/essays', (req, res) => {
+  const data = req.body || {};
+  if (!data.challengeId) {
+    return res.status(400).json({ error: 'challengeId is required' });
+  }
+  if (!data.content || !data.sentiment) {
+    return res.status(400).json({ error: 'content and sentiment are required' });
+  }
+  
+  const newEssay = {
+    id: `essay-${Date.now()}`,
+    challengeId: String(data.challengeId),
+    content: String(data.content),
+    imageUrl: data.imageUrl ? String(data.imageUrl) : undefined,
+    sentiment: data.sentiment === 'bullish' ? 'bullish' : 'bearish',
+    createdAt: Date.now(),
+  };
+  
+  db.essays.push(newEssay);
+  saveDB(db);
+  res.status(201).json(newEssay);
+});
+
+// 删除小作文（需要 Token，管理员权限）
+app.delete('/api/essays/:id', requireToken, (req, res) => {
+  const idx = db.essays.findIndex((e) => e.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'not found' });
+  
+  const deleted = db.essays.splice(idx, 1)[0];
+  
+  // 如果有图片，尝试删除图片文件
+  if (deleted.imageUrl) {
+    try {
+      const imagePath = path.join(UPLOAD_DIR, path.basename(deleted.imageUrl));
+      if (fs.existsSync(imagePath)) {
+        fs.unlinkSync(imagePath);
+        console.log(`[essay] Removed image: ${imagePath}`);
+      }
+    } catch (e) {
+      console.error('Failed to delete essay image:', e);
+    }
+  }
+  
+  saveDB(db);
+  res.json({ ok: true, deleted });
+});
 
 // 创建（需要 Token）
 app.post('/api/challenges', requireToken, (req, res) => {
@@ -456,10 +568,28 @@ app.post('/api/admin-login', (req, res) => {
   res.json({ ok });
 });
 
-// 静态文件（Vite dist）- 修复路径：Dockerfile 把 dist 放到了 /app/frontend-dist
-const DIST_DIR = process.env.DIST_DIR || path.join(__dirname, 'frontend-dist');
-console.log(`[info] Looking for frontend dist at: ${DIST_DIR}`);
-if (fs.existsSync(DIST_DIR)) {
+// 静态文件（Vite dist）
+// Docker 环境：构建产物在 frontend-dist
+// 本地开发：构建产物在 dist
+let DIST_DIR = process.env.DIST_DIR;
+if (!DIST_DIR) {
+  // 优先查找 frontend-dist（Docker 环境）
+  const dockerDist = path.join(__dirname, 'frontend-dist');
+  // 然后查找 dist（本地开发）
+  const localDist = path.join(__dirname, '..', '..', 'dist');
+  const localDistAlt = path.join(__dirname, '..', 'dist');
+  
+  if (fs.existsSync(dockerDist)) {
+    DIST_DIR = dockerDist;
+  } else if (fs.existsSync(localDist)) {
+    DIST_DIR = localDist;
+  } else if (fs.existsSync(localDistAlt)) {
+    DIST_DIR = localDistAlt;
+  }
+}
+
+console.log(`[info] Looking for frontend dist at: ${DIST_DIR || 'not found'}`);
+if (DIST_DIR && fs.existsSync(DIST_DIR)) {
   const files = fs.readdirSync(DIST_DIR);
   console.log(`[info] Found ${files.length} files in dist: ${files.join(', ')}`);
   app.use(express.static(DIST_DIR));
@@ -468,6 +598,7 @@ if (fs.existsSync(DIST_DIR)) {
   });
 } else {
   console.warn(`[warn] DIST_DIR not found: ${DIST_DIR}. API-only mode.`);
+  console.warn(`[hint] Run 'npm run build' to build the frontend, or set DIST_DIR environment variable.`);
 }
 
 app.listen(PORT, '0.0.0.0', () => {

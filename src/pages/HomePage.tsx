@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { Search, Filter } from 'lucide-react';
 import { useChallengeStore } from '../store/challengeStore';
 import { ChallengeCard } from '../components/challenge/ChallengeCard';
+import { EssayDetailModal } from '../components/essay/EssayDetailModal';
 import { ChallengeStatus, Challenge } from '../types';
 
 type EffectiveStatus = 'active' | 'pending' | 'completed';
@@ -15,8 +16,10 @@ function getEffectiveStatus(challenge: Challenge): EffectiveStatus {
 
 export function HomePage() {
   const challenges = useChallengeStore((state) => state.challenges);
+  const essays = useChallengeStore((state) => state.essays);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<ChallengeStatus>('all');
+  const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null);
 
   const withEffectiveStatus = useMemo(
     () => challenges.map((c) => ({ ...c, effectiveStatus: getEffectiveStatus(c) })),
@@ -50,6 +53,12 @@ export function HomePage() {
     { label: '已结束', value: 'completed' },
   ];
 
+  const getChallengeEssays = (challengeId: string) => {
+    return essays
+      .filter((e) => e.challengeId === challengeId)
+      .sort((a, b) => b.createdAt - a.createdAt);
+  };
+
   const renderGroup = (
     title: string,
     accent: string,
@@ -70,7 +79,11 @@ export function HomePage() {
               className="animate-fade-in-up"
               style={{ animationDelay: `${index * 100}ms` }}
             >
-              <ChallengeCard challenge={challenge} />
+              <ChallengeCard
+                challenge={challenge}
+                essays={getChallengeEssays(challenge.id)}
+                onEssayClick={() => setSelectedChallenge(challenge)}
+              />
             </div>
           ))}
         </div>
@@ -149,12 +162,23 @@ export function HomePage() {
                   className="animate-fade-in-up"
                   style={{ animationDelay: `${index * 100}ms` }}
                 >
-                  <ChallengeCard challenge={challenge} />
+                  <ChallengeCard
+                    challenge={challenge}
+                    essays={getChallengeEssays(challenge.id)}
+                    onEssayClick={() => setSelectedChallenge(challenge)}
+                  />
                 </div>
               ))}
           </div>
         )}
       </div>
+
+      {selectedChallenge && (
+        <EssayDetailModal
+          challenge={selectedChallenge}
+          onClose={() => setSelectedChallenge(null)}
+        />
+      )}
     </div>
   );
 }

@@ -9,6 +9,15 @@ export interface Participant {
   joinTime?: string; // 参加时间（格式：YYYY-MM-DD）
 }
 
+export interface Essay {
+  id: string;
+  challengeId: string;
+  content: string;
+  imageUrl?: string;
+  sentiment: 'bullish' | 'bearish'; // 利多/利空
+  createdAt: number;
+}
+
 export interface Challenge {
   id: string;
   theme: string;
@@ -22,6 +31,7 @@ export interface Challenge {
   status: 'active' | 'pending' | 'completed'; // 进行中/待确认/已结束
   isBlocked: boolean; // 封档标签，只在active状态有效，禁止参与
   participants: Participant[];
+  essays: Essay[];
   createdAt: number;
 }
 
