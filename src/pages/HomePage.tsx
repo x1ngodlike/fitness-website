@@ -103,8 +103,8 @@ export function HomePage() {
           </p>
         </div>
 
-        <div className="flex flex-col gap-3 mb-8">
-          <div className="relative">
+        <div className="flex flex-row items-center gap-3 mb-8">
+          <div className="relative flex-1 min-w-0">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-500" />
             <input
               type="text"
@@ -115,7 +115,7 @@ export function HomePage() {
             />
           </div>
 
-          <div className="flex items-center gap-2 p-1.5 bg-neutral-900 rounded-xl border border-neutral-800 overflow-x-auto">
+          <div className="flex items-center gap-2 p-1.5 bg-neutral-900 rounded-xl border border-neutral-800 flex-shrink-0">
             <Filter className="w-4 h-4 text-neutral-500 ml-2 flex-shrink-0" />
             {statusTabs.map((tab) => (
               <button
