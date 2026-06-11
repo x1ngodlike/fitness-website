@@ -458,7 +458,6 @@ app.post('/api/upload', essayUpload.single('image'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'no file' });
   
   try {
-    const challengeId = req.body.challengeId || req.query.challengeId || 'unknown';
     const originalPath = req.file.path;
     const originalSize = req.file.size;
     
@@ -469,15 +468,14 @@ app.post('/api/upload', essayUpload.single('image'), async (req, res) => {
     // 如果压缩后更小，则使用压缩后的图片
     if (compressedSize < originalSize) {
       fs.writeFileSync(originalPath, compressedBuffer);
-      console.log(`[upload] Image compressed: ${challengeId}, ${(originalSize / 1024).toFixed(1)}KB -> ${(compressedSize / 1024).toFixed(1)}KB`);
+      console.log(`[upload] Image compressed: ${(originalSize / 1024).toFixed(1)}KB -> ${(compressedSize / 1024).toFixed(1)}KB`);
     }
     
-    res.json({ url: `/essay-uploads/${challengeId}/${req.file.filename}` });
+    res.json({ url: `/essay-uploads/${req.file.filename}` });
   } catch (error) {
     console.error('Upload error:', error);
     // 即使压缩失败，也返回原图路径
-    const challengeId = req.body.challengeId || req.query.challengeId || 'unknown';
-    res.json({ url: `/essay-uploads/${challengeId}/${req.file.filename}` });
+    res.json({ url: `/essay-uploads/${req.file.filename}` });
   }
 });
 
