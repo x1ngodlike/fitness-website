@@ -501,6 +501,117 @@ app.get('/api/essays', (_req, res) => {
   res.json(essays);
 });
 
+// 每日简报（公开，用于 iOS 快捷指令）
+app.get('/api/daily-report', (_req, res) => {
+  const now = Date.now();
+  const oneDayMs = 24 * 60 * 60 * 1000;
+  const oneDayAgo = now - oneDayMs;
+
+  function getEffectiveStatus(challenge) {
+    if (challenge.status === 'completed') return 'completed';
+    const endDate = new Date(challenge.endDate).getTime();
+    if (challenge.status === 'active' && now > endDate) return 'pending';
+    return 'active';
+  }
+
+  const challengesWithStatus = db.challenges.map(c => ({
+    ...c,
+    effectiveStatus: getEffectiveStatus(c),
+    essayCount: db.essays.filter(e => e.challengeId === c.id).length,
+  }));
+
+  const activeChallenges = challengesWithStatus.filter(c => c.effectiveStatus === 'active');
+  const pendingChallenges = challengesWithStatus.filter(c => c.effectiveStatus === 'pending');
+  const completedChallenges = challengesWithStatus.filter(c => c.effectiveStatus === 'completed');
+
+  const todayEssays = db.essays.filter(e => e.createdAt >= oneDayAgo);
+  const recentEssays = [...db.essays].sort((a, b) => b.createdAt - a.createdAt).slice(0, 5);
+
+  const topEssays = recentEssays.map(essay => {
+    const challenge = db.challenges.find(c => c.id === essay.challengeId);
+    return {
+      content: essay.content,
+      sentiment: essay.sentiment,
+      challengeTheme: challenge ? challenge.theme : '未知挑战',
+      time: new Date(essay.createdAt).toLocaleString('zh-CN'),
+    };
+  });
+
+  const challengeDetails = challengesWithStatus.map(c => ({
+    theme: c.theme,
+    hostName: c.hostName,
+    status: c.effectiveStatus,
+    statusText: c.effectiveStatus === 'active' ? '进行中' : c.effectiveStatus === 'pending' ? '待确认' : '已结束',
+    endDate: c.endDate,
+    essayCount: c.essayCount,
+  }));
+
+  const report = {
+    date: new Date(now).toLocaleDateString('zh-CN'),
+    summary: {
+      totalChallenges: db.challenges.length,
+      totalEssays: db.essays.length,
+      activeChallenges: activeChallenges.length,
+      pendingChallenges: pendingChallenges.length,
+      completedChallenges: completedChallenges.length,
+      todayEssaysCount: todayEssays.length,
+    },
+    activeChallenges: challengeDetails.filter(c => c.status === 'active'),
+    pendingChallenges: challengeDetails.filter(c => c.status === 'pending'),
+    recentEssays: topEssays,
+    text: generateDailyReportText({
+      date: new Date(now).toLocaleDateString('zh-CN'),
+      activeCount: activeChallenges.length,
+      pendingCount: pendingChallenges.length,
+      completedCount: completedChallenges.length,
+      todayEssaysCount: todayEssays.length,
+      activeChallenges: challengeDetails.filter(c => c.status === 'active'),
+      pendingChallenges: challengeDetails.filter(c => c.status === 'pending'),
+      recentEssays: topEssays,
+    }),
+  };
+
+  res.json(report);
+});
+
+function generateDailyReportText(data) {
+  const lines = [];
+  lines.push(`📊 每日简报 · ${data.date}`);
+  lines.push('══════════════════════');
+  lines.push(`🏃 进行中挑战：${data.activeCount} 个`);
+  lines.push(`⏰ 待确认：${data.pendingCount} 个`);
+  lines.push(`✅ 已结束：${data.completedCount} 个`);
+  lines.push(`📝 今日小作文：${data.todayEssaysCount} 篇`);
+  lines.push('');
+
+  if (data.activeChallenges.length > 0) {
+    lines.push('🔥 进行中的挑战：');
+    data.activeChallenges.forEach((c, i) => {
+      lines.push(`  ${i + 1}. ${c.theme}（${c.hostName}）· ${c.essayCount}篇动态`);
+    });
+    lines.push('');
+  }
+
+  if (data.pendingChallenges.length > 0) {
+    lines.push('⏳ 等待确认的挑战：');
+    data.pendingChallenges.forEach((c, i) => {
+      lines.push(`  ${i + 1}. ${c.theme}（${c.hostName}）`);
+    });
+    lines.push('');
+  }
+
+  if (data.recentEssays.length > 0) {
+    lines.push('💬 最新小作文：');
+    data.recentEssays.forEach((e, i) => {
+      const icon = e.sentiment === 'bullish' ? '📈' : '📉';
+      const content = e.content.length > 60 ? e.content.slice(0, 60) + '...' : e.content;
+      lines.push(`  ${icon} [${e.challengeTheme}] ${content}`);
+    });
+  }
+
+  return lines.join('\n');
+}
+
 // 获取挑战的小作文列表（公开）
 app.get('/api/challenges/:id/essays', (req, res) => {
   const essays = db.essays
