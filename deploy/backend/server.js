@@ -210,13 +210,11 @@ const upload = multer({
   },
 });
 
-// 小作文图片上传配置（按挑战ID分组）
+// 小作文图片上传配置（统一存储到 essay-uploads 目录）
 const essayStorage = multer.diskStorage({
-  destination: (req, _file, cb) => {
-    const challengeId = req.body.challengeId || req.query.challengeId || 'unknown';
-    const challengeDir = path.join(ESSAY_UPLOAD_DIR, challengeId);
-    fs.mkdirSync(challengeDir, { recursive: true });
-    cb(null, challengeDir);
+  destination: (_req, _file, cb) => {
+    fs.mkdirSync(ESSAY_UPLOAD_DIR, { recursive: true });
+    cb(null, ESSAY_UPLOAD_DIR);
   },
   filename: (_req, file, cb) => {
     const ext = path.extname(file.originalname) || '.jpg';
