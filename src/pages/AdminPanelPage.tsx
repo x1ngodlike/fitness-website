@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Shield, Edit2, CheckCircle, X, Lock, Unlock, Users, Save, Trash2, UserX, Key, Settings } from 'lucide-react';
+import { Shield, Edit2, CheckCircle, X, Lock, Unlock, Users, Save, Trash2, UserX } from 'lucide-react';
 import { useChallengeStore } from '../store/challengeStore';
 import { Challenge, Participant } from '../types';
 
@@ -42,60 +42,7 @@ export function AdminPanelPage() {
     joinTime: '',
   });
 
-  // 设置相关状态
-  const [showSettings, setShowSettings] = useState(false);
-  const [passwordForm, setPasswordForm] = useState({ oldPassword: '', newPassword: '' });
-  const [tokenForm, setTokenForm] = useState({ newToken: '' });
-  const [settingsMessage, setSettingsMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const envMode = useChallengeStore((state) => state.envMode);
 
-  // 修改密码
-  const handleChangePassword = async () => {
-    if (passwordForm.newPassword.length < 6) {
-      setSettingsMessage({ type: 'error', text: '新密码至少需要6个字符' });
-      return;
-    }
-    try {
-      const res = await fetch('/api/change-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ oldPassword: passwordForm.oldPassword, newPassword: passwordForm.newPassword }),
-      });
-      const data = await res.json();
-      if (data.ok) {
-        setSettingsMessage({ type: 'success', text: '密码修改成功！请更新服务器环境变量以永久生效' });
-        setPasswordForm({ oldPassword: '', newPassword: '' });
-      } else {
-        setSettingsMessage({ type: 'error', text: data.error || '修改失败' });
-      }
-    } catch {
-      setSettingsMessage({ type: 'error', text: '网络错误' });
-    }
-  };
-
-  // 修改 Token
-  const handleChangeToken = async () => {
-    if (tokenForm.newToken.length < 16) {
-      setSettingsMessage({ type: 'error', text: '新Token至少需要16个字符' });
-      return;
-    }
-    try {
-      const res = await fetch('/api/change-token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: passwordForm.oldPassword, newToken: tokenForm.newToken }),
-      });
-      const data = await res.json();
-      if (data.ok) {
-        setSettingsMessage({ type: 'success', text: 'Token修改成功！请使用新Token重新登录' });
-        setTokenForm({ newToken: '' });
-      } else {
-        setSettingsMessage({ type: 'error', text: data.error || '修改失败' });
-      }
-    } catch {
-      setSettingsMessage({ type: 'error', text: '网络错误' });
-    }
-  };
 
   const sortedChallenges = useMemo(() => {
     return [...challenges].sort((a, b) => {
@@ -206,18 +153,9 @@ export function AdminPanelPage() {
     <div className="min-h-screen bg-neutral-950">
       <div className="max-w-4xl mx-auto px-6 pt-24 pb-16">
         <div className="mb-8">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-3">
-              <Shield className="w-8 h-8 text-orange-500" />
-              <h1 className="text-3xl font-bold text-white">管理面板</h1>
-            </div>
-            <button
-              onClick={() => setShowSettings(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-white rounded-lg font-medium transition-all"
-            >
-              <Settings className="w-4 h-4" />
-              安全设置
-            </button>
+          <div className="flex items-center gap-3 mb-2">
+            <Shield className="w-8 h-8 text-orange-500" />
+            <h1 className="text-3xl font-bold text-white">管理面板</h1>
           </div>
           <p className="text-neutral-500">管理所有挑战：编辑内容、封档参与、确认结果、修改参与者信息</p>
         </div>
@@ -535,101 +473,6 @@ export function AdminPanelPage() {
             );
           })}
         </div>
-
-        {/* 安全设置弹窗 */}
-        {showSettings && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-6">
-            <div className="bg-neutral-900 rounded-2xl border border-neutral-800 p-6 w-full max-w-md">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                  <Key className="w-5 h-5 text-orange-500" />
-                  安全设置
-                </h3>
-                <button
-                  onClick={() => { setShowSettings(false); setSettingsMessage(null); }}
-                  className="text-neutral-400 hover:text-white"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              {envMode === 'test' && (
-                <div className="mb-4 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
-                  <p className="text-yellow-400 text-sm">当前为测试环境，修改密码不会影响正式服务器</p>
-                </div>
-              )}
-
-              {settingsMessage && (
-                <div className={`mb-4 p-3 rounded-lg text-sm ${
-                  settingsMessage.type === 'success'
-                    ? 'bg-green-500/10 border border-green-500/20 text-green-400'
-                    : 'bg-red-500/10 border border-red-500/20 text-red-400'
-                }`}>
-                  {settingsMessage.text}
-                </div>
-              )}
-
-              <div className="space-y-4">
-                {/* 修改密码 */}
-                <div className="p-4 bg-neutral-800/50 rounded-xl">
-                  <h4 className="text-white font-medium mb-3">修改管理员密码</h4>
-                  <div className="space-y-3">
-                    <input
-                      type="password"
-                      placeholder="当前密码"
-                      value={passwordForm.oldPassword}
-                      onChange={(e) => setPasswordForm({ ...passwordForm, oldPassword: e.target.value })}
-                      className="w-full px-4 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-orange-500"
-                    />
-                    <input
-                      type="password"
-                      placeholder="新密码（至少6位）"
-                      value={passwordForm.newPassword}
-                      onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
-                      className="w-full px-4 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-orange-500"
-                    />
-                    <button
-                      onClick={handleChangePassword}
-                      disabled={!passwordForm.oldPassword || !passwordForm.newPassword}
-                      className="w-full py-2 bg-orange-500 hover:bg-orange-600 disabled:bg-neutral-700 disabled:text-neutral-400 text-white rounded-lg font-medium transition-all"
-                    >
-                      修改密码
-                    </button>
-                  </div>
-                </div>
-
-                {/* 修改 Token */}
-                <div className="p-4 bg-neutral-800/50 rounded-xl">
-                  <h4 className="text-white font-medium mb-3">修改 API Token</h4>
-                  <p className="text-neutral-500 text-sm mb-3">Token 用于保护数据修改接口，修改后需要重新登录</p>
-                  <div className="space-y-3">
-                    <input
-                      type="password"
-                      placeholder="当前密码（验证身份）"
-                      value={passwordForm.oldPassword}
-                      onChange={(e) => setPasswordForm({ ...passwordForm, oldPassword: e.target.value })}
-                      className="w-full px-4 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-orange-500"
-                    />
-                    <input
-                      type="text"
-                      placeholder="新 Token（至少16位）"
-                      value={tokenForm.newToken}
-                      onChange={(e) => setTokenForm({ newToken: e.target.value })}
-                      className="w-full px-4 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-orange-500"
-                    />
-                    <button
-                      onClick={handleChangeToken}
-                      disabled={!passwordForm.oldPassword || !tokenForm.newToken}
-                      className="w-full py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-neutral-700 disabled:text-neutral-400 text-white rounded-lg font-medium transition-all"
-                    >
-                      修改 Token
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
