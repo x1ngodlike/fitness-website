@@ -40,8 +40,8 @@ export function ChallengeDetailPage() {
   const myStake = parseInt(myStakeInput, 10) || 0;
 
   const handleJoin = async () => {
-    if (!participantName || myStake < challenge.minStake || !selectedSide) {
-      setJoinError(`参与金额不能低于${challenge.minStake}元`);
+    if (!participantName || myStake < MIN_PARTICIPANT_STAKE || !selectedSide) {
+      setJoinError(`参与金额不能低于${MIN_PARTICIPANT_STAKE}元`);
       return;
     }
     const ok = await joinChallenge(challenge.id, participantName, myStake, selectedSide);
@@ -459,10 +459,10 @@ export function ChallengeDetailPage() {
             <div className="mb-6">
               <label className="block text-white font-medium mb-3">
                 <Flame className="w-4 h-4 inline mr-2 text-orange-500" />
-                你的押金 <span className="text-neutral-500 text-sm">(最低{challenge.minStake})</span>
+                你的押金 <span className="text-neutral-500 text-sm">(最低{MIN_PARTICIPANT_STAKE})</span>
               </label>
               <div className="flex flex-wrap gap-2">
-                {[challenge.minStake, 200, 500, 1000, 2000].filter((v,i,a) => v >= challenge.minStake && a.indexOf(v) === i).map((amount) => (
+                {[100, 200, 500, 1000, 2000].filter((v,i,a) => v >= MIN_PARTICIPANT_STAKE && a.indexOf(v) === i).map((amount) => (
                   <button
                     key={amount}
                     type="button"
