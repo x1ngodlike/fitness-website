@@ -14,7 +14,9 @@ export function EssayDetailModal({ challenge, onClose }: EssayDetailModalProps) 
   const { essays, addEssay, deleteEssay, isAdminAuthenticated } = useChallengeStore();
   const [showAddModal, setShowAddModal] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
-  const challengeEssays = essays.filter(e => e.challengeId === challenge.id) || [];
+  const challengeEssays = essays
+    .filter(e => e.challengeId === challenge.id)
+    .sort((a, b) => b.createdAt - a.createdAt) || [];
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
