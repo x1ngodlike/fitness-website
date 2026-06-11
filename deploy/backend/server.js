@@ -19,6 +19,9 @@ const PORT = Number(process.env.PORT) || 3000;
 // Token 存储文件
 const TOKEN_FILE = path.join(DATA_DIR, '.token');
 
+// 备份目录
+const BACKUP_DIR = path.join(DATA_DIR, 'backups');
+
 // 加载自定义 Token（如果存在）
 function loadToken() {
   try {
@@ -38,11 +41,149 @@ function saveToken(token) {
   }
 }
 
+// 服务器端备份函数
+// type: 'auto' - 自动备份（会被自动清理）, 'manual' - 手动备份（不会被自动清理）
+function createServerBackup(type = 'auto') {
+  try {
+    if (!fs.existsSync(BACKUP_DIR)) {
+      fs.mkdirSync(BACKUP_DIR, { recursive: true });
+    }
+    
+    const timestamp = new Date();
+    const dateStr = timestamp.toISOString().replace(/[:]/g, '-');
+    const backupFile = path.join(BACKUP_DIR, `backup-${type}-${dateStr}.json`);
+    
+    const backupData = {
+      data: db,
+      timestamp: timestamp.toISOString(),
+      version: '1.0',
+      type: type,
+    };
+    
+    fs.writeFileSync(backupFile, JSON.stringify(backupData, null, 2));
+    console.log(`[backup] Created ${type} backup: ${backupFile}`);
+    
+    // 只清理自动备份，手动备份需要手动删除
+    if (type === 'auto') {
+      cleanupOldAutoBackups();
+    }
+    
+    return backupFile;
+  } catch (e) {
+    console.error('Failed to create backup:', e);
+    return null;
+  }
+}
+
+// 清理旧的自动备份（保留最近7天）
+function cleanupOldAutoBackups() {
+  try {
+    const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+    const files = fs.readdirSync(BACKUP_DIR);
+    
+    files.forEach((file) => {
+      // 只清理自动备份，手动备份不清理
+      if (!file.startsWith('backup-auto-')) {
+        return;
+      }
+      
+      const filePath = path.join(BACKUP_DIR, file);
+      const stats = fs.statSync(filePath);
+      if (stats.mtime.getTime() < sevenDaysAgo) {
+        fs.unlinkSync(filePath);
+        console.log(`[backup] Removed old auto backup: ${file}`);
+      }
+    });
+  } catch (e) {
+    console.error('Failed to cleanup backups:', e);
+  }
+}
+
+// 获取服务器备份列表
+function getServerBackups() {
+  try {
+    if (!fs.existsSync(BACKUP_DIR)) {
+      return [];
+    }
+    
+    const files = fs.readdirSync(BACKUP_DIR)
+      .filter((file) => file.endsWith('.json'))
+      .map((file) => {
+        const filePath = path.join(BACKUP_DIR, file);
+        const stats = fs.statSync(filePath);
+        return {
+          filename: file,
+          path: filePath,
+          size: stats.size,
+          createdAt: stats.ctime.toISOString(),
+        };
+      })
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    
+    return files;
+  } catch (e) {
+    console.error('Failed to get backups:', e);
+    return [];
+  }
+}
+
+// 从服务器备份恢复
+function restoreFromServerBackup(filename) {
+  try {
+    const filePath = path.join(BACKUP_DIR, filename);
+    if (!fs.existsSync(filePath)) {
+      return { success: false, error: '备份文件不存在' };
+    }
+    
+    const content = fs.readFileSync(filePath, 'utf-8');
+    const backupData = JSON.parse(content);
+    
+    if (!backupData.data || !Array.isArray(backupData.data.challenges)) {
+      return { success: false, error: '无效的备份数据' };
+    }
+    
+    db = { challenges: backupData.data.challenges };
+    saveDB(db);
+    
+    return { success: true, count: db.challenges.length, timestamp: backupData.timestamp };
+  } catch (e) {
+    console.error('Failed to restore backup:', e);
+    return { success: false, error: '恢复失败: ' + e.message };
+  }
+}
+
 const validToken = loadToken();
 
 // 确保数据目录存在
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+if (!fs.existsSync(BACKUP_DIR)) fs.mkdirSync(BACKUP_DIR, { recursive: true });
+
+// 定时自动备份（每天凌晨2点）
+function scheduleDailyBackup() {
+  const now = new Date();
+  let nextBackup = new Date(now);
+  nextBackup.setHours(2, 0, 0, 0);
+  if (nextBackup <= now) {
+    nextBackup.setDate(nextBackup.getDate() + 1);
+  }
+  
+  const delay = nextBackup.getTime() - now.getTime();
+  console.log(`[backup] Next scheduled backup: ${nextBackup.toLocaleString()}`);
+  
+  setTimeout(() => {
+    createServerBackup();
+    scheduleDailyBackup(); // 继续调度下一次
+  }, delay);
+}
+
+// 启动时立即创建一次备份
+setTimeout(() => {
+  createServerBackup();
+}, 5000);
+
+// 启动定时备份
+scheduleDailyBackup();
 
 // 配置文件上传
 const storage = multer.diskStorage({
@@ -151,6 +292,106 @@ app.post('/api/change-token', (req, res) => {
   
   saveToken(newToken);
   res.json({ ok: true, token: newToken });
+});
+
+// 备份数据（需要 Token）
+app.get('/api/backup', requireToken, (req, res) => {
+  const backup = {
+    data: db,
+    timestamp: new Date().toISOString(),
+    version: '1.0',
+  };
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Content-Disposition', `attachment; filename=fitness-backup-${Date.now()}.json`);
+  res.json(backup);
+});
+
+// 恢复数据（需要 Token）
+app.post('/api/restore', requireToken, (req, res) => {
+  const { data } = req.body || {};
+  
+  if (!data || !Array.isArray(data.challenges)) {
+    return res.status(400).json({ error: 'Invalid backup data' });
+  }
+  
+  try {
+    db = { challenges: data.challenges };
+    saveDB(db);
+    res.json({ ok: true, count: db.challenges.length });
+  } catch (e) {
+    console.error('Restore error:', e);
+    res.status(500).json({ error: 'Restore failed' });
+  }
+});
+
+// 获取服务器备份列表（需要 Token）
+app.get('/api/server-backups', requireToken, (_req, res) => {
+  const backups = getServerBackups();
+  res.json(backups);
+});
+
+// 手动创建服务器备份（需要 Token）
+app.post('/api/server-backup', requireToken, (_req, res) => {
+  // 创建手动备份，不会被自动清理
+  const backupFile = createServerBackup('manual');
+  if (backupFile) {
+    res.json({ ok: true, message: '手动备份创建成功', file: path.basename(backupFile) });
+  } else {
+    res.status(500).json({ ok: false, error: '备份创建失败' });
+  }
+});
+
+// 从服务器备份恢复（需要 Token）
+app.post('/api/server-restore/:filename', requireToken, (req, res) => {
+  const filename = req.params.filename;
+  const result = restoreFromServerBackup(filename);
+  
+  if (result.success) {
+    res.json({ ok: true, count: result.count, timestamp: result.timestamp });
+  } else {
+    res.status(400).json({ ok: false, error: result.error });
+  }
+});
+
+// 删除服务器备份（需要 Token）
+app.delete('/api/server-backup/:filename', requireToken, (req, res) => {
+  const filename = req.params.filename;
+  
+  // 安全检查：只允许删除.json文件
+  if (!filename.endsWith('.json')) {
+    return res.status(400).json({ ok: false, error: '无效的文件名' });
+  }
+  
+  try {
+    const filePath = path.join(BACKUP_DIR, filename);
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ ok: false, error: '备份文件不存在' });
+    }
+    
+    fs.unlinkSync(filePath);
+    res.json({ ok: true, message: '备份已删除' });
+  } catch (e) {
+    console.error('Failed to delete backup:', e);
+    res.status(500).json({ ok: false, error: '删除失败' });
+  }
+});
+
+// 下载服务器备份文件（需要 Token）
+app.get('/api/backup/download/:filename', requireToken, (req, res) => {
+  const filename = req.params.filename;
+  
+  if (!filename.endsWith('.json')) {
+    return res.status(400).json({ error: '无效的文件名' });
+  }
+  
+  const filePath = path.join(BACKUP_DIR, filename);
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: '备份文件不存在' });
+  }
+  
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Content-Disposition', `attachment; filename=${encodeURIComponent(filename)}`);
+  res.sendFile(filePath);
 });
 
 // 图片上传（需要 Token）

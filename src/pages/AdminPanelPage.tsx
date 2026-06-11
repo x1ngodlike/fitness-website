@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Shield, Edit2, CheckCircle, X, Lock, Unlock, Users, Save, Trash2, UserX } from 'lucide-react';
+import { Shield, Edit2, CheckCircle, X, Lock, Unlock, Users, Save, Trash2, UserX, Download, Upload, AlertTriangle } from 'lucide-react';
 import { useChallengeStore } from '../store/challengeStore';
 import { Challenge, Participant } from '../types';
 
@@ -42,6 +42,198 @@ export function AdminPanelPage() {
     joinTime: '',
   });
 
+  // 备份恢复相关状态
+  const [backupMessage, setBackupMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [isRestoring, setIsRestoring] = useState(false);
+  const [showServerBackups, setShowServerBackups] = useState(false);
+  const [serverBackups, setServerBackups] = useState<Array<{ filename: string; size: number; createdAt: string }>>([]);
+  const [isLoadingBackups, setIsLoadingBackups] = useState(false);
+  const init = useChallengeStore((state) => state.init);
+
+  // 获取服务器备份列表
+  const loadServerBackups = async () => {
+    const token = localStorage.getItem('challenge-api-token');
+    setIsLoadingBackups(true);
+    try {
+      const res = await fetch('/api/server-backups', {
+        headers: { 'x-api-token': token || '' },
+      });
+      const backups = await res.json();
+      setServerBackups(backups);
+    } catch (e) {
+      console.error('Failed to load server backups:', e);
+    }
+    setIsLoadingBackups(false);
+  };
+
+  // 手动创建服务器备份
+  const createServerBackup = async () => {
+    const token = localStorage.getItem('challenge-api-token');
+    try {
+      const res = await fetch('/api/server-backup', {
+        method: 'POST',
+        headers: { 'x-api-token': token || '' },
+      });
+      const result = await res.json();
+      if (result.ok) {
+        setBackupMessage({ type: 'success', text: `服务器备份创建成功: ${result.file}` });
+        await loadServerBackups();
+      } else {
+        setBackupMessage({ type: 'error', text: result.error || '备份失败' });
+      }
+    } catch (e) {
+      setBackupMessage({ type: 'error', text: '备份失败，请重试' });
+    }
+    setTimeout(() => setBackupMessage(null), 3000);
+  };
+
+  // 从服务器备份恢复
+  const restoreFromServerBackup = async (filename: string) => {
+    if (!confirm(`⚠️ 确定要从备份 "${filename}" 恢复吗？这将覆盖当前所有数据！`)) {
+      return;
+    }
+
+    const token = localStorage.getItem('challenge-api-token');
+    setIsRestoring(true);
+    try {
+      const res = await fetch(`/api/server-restore/${encodeURIComponent(filename)}`, {
+        method: 'POST',
+        headers: { 'x-api-token': token || '' },
+      });
+      const result = await res.json();
+      if (result.ok) {
+        await init();
+        setBackupMessage({ type: 'success', text: `从服务器备份恢复成功！共 ${result.count} 条数据` });
+      } else {
+        setBackupMessage({ type: 'error', text: result.error || '恢复失败' });
+      }
+    } catch (e) {
+      setBackupMessage({ type: 'error', text: '恢复失败，请重试' });
+    }
+    setIsRestoring(false);
+    setTimeout(() => setBackupMessage(null), 3000);
+  };
+
+  // 删除服务器备份
+  const deleteServerBackup = async (filename: string) => {
+    if (!confirm(`确定要删除备份 "${filename}" 吗？`)) {
+      return;
+    }
+
+    const token = localStorage.getItem('challenge-api-token');
+    try {
+      const res = await fetch(`/api/server-backup/${encodeURIComponent(filename)}`, {
+        method: 'DELETE',
+        headers: { 'x-api-token': token || '' },
+      });
+      const result = await res.json();
+      if (result.ok) {
+        setBackupMessage({ type: 'success', text: '备份已删除' });
+        await loadServerBackups();
+      } else {
+        setBackupMessage({ type: 'error', text: result.error || '删除失败' });
+      }
+    } catch (e) {
+      setBackupMessage({ type: 'error', text: '删除失败，请重试' });
+    }
+    setTimeout(() => setBackupMessage(null), 3000);
+  };
+
+  // 下载服务器备份
+  const downloadServerBackup = async (filename: string) => {
+    const token = localStorage.getItem('challenge-api-token');
+    try {
+      const res = await fetch(`/api/backup/download/${encodeURIComponent(filename)}`, {
+        headers: { 'x-api-token': token || '' },
+      });
+      if (!res.ok) {
+        throw new Error('下载失败');
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      setBackupMessage({ type: 'error', text: '下载失败，请重试' });
+      setTimeout(() => setBackupMessage(null), 3000);
+    }
+  };
+
+  // 下载到本地备份
+  const handleBackup = async () => {
+    const token = localStorage.getItem('challenge-api-token');
+    try {
+      const res = await fetch('/api/backup', {
+        headers: { 'x-api-token': token || '' },
+      });
+      if (!res.ok) {
+        throw new Error('备份失败');
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `fitness-backup-${Date.now()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      setBackupMessage({ type: 'success', text: '备份成功！文件已下载' });
+    } catch (e) {
+      setBackupMessage({ type: 'error', text: '备份失败，请重试' });
+    }
+    setTimeout(() => setBackupMessage(null), 3000);
+  };
+
+  // 从本地文件恢复
+  const handleRestore = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!confirm('⚠️ 恢复数据将覆盖当前所有数据，确定继续吗？')) {
+      return;
+    }
+
+    setIsRestoring(true);
+    const token = localStorage.getItem('challenge-api-token');
+
+    try {
+      const content = await file.text();
+      const backupData = JSON.parse(content);
+
+      const res = await fetch('/api/restore', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-token': token || '',
+        },
+        body: JSON.stringify(backupData),
+      });
+
+      if (!res.ok) {
+        throw new Error('恢复失败');
+      }
+
+      const result = await res.json();
+      if (result.ok) {
+        await init();
+        setBackupMessage({ type: 'success', text: `恢复成功！共 ${result.count} 条挑战数据` });
+      } else {
+        setBackupMessage({ type: 'error', text: result.error || '恢复失败' });
+      }
+    } catch (e) {
+      setBackupMessage({ type: 'error', text: '恢复失败，请检查文件格式' });
+    }
+
+    setIsRestoring(false);
+    event.target.value = '';
+    setTimeout(() => setBackupMessage(null), 3000);
+  };
 
 
   const sortedChallenges = useMemo(() => {
@@ -153,10 +345,61 @@ export function AdminPanelPage() {
     <div className="min-h-screen bg-neutral-950">
       <div className="max-w-4xl mx-auto px-6 pt-24 pb-16">
         <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <Shield className="w-8 h-8 text-orange-500" />
-            <h1 className="text-3xl font-bold text-white">管理面板</h1>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-3">
+              <Shield className="w-8 h-8 text-orange-500" />
+              <h1 className="text-3xl font-bold text-white">管理面板</h1>
+            </div>
+            <div className="flex items-center gap-4">
+              {/* 本地操作组 */}
+              <div className="flex items-center gap-2 bg-neutral-800/50 rounded-lg p-1">
+                <button
+                  onClick={handleBackup}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-all"
+                >
+                  <Download className="w-4 h-4" />
+                  下载备份
+                </button>
+                <label className="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-all cursor-pointer">
+                  <Upload className="w-4 h-4" />
+                  上传恢复
+                  <input
+                    type="file"
+                    accept=".json"
+                    onChange={handleRestore}
+                    disabled={isRestoring}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+              {/* 服务器操作组 */}
+              <div className="flex items-center gap-2 bg-neutral-800/50 rounded-lg p-1">
+                <button
+                  onClick={createServerBackup}
+                  className="flex items-center gap-2 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg font-medium transition-all"
+                >
+                  <Download className="w-4 h-4" />
+                  服务器备份
+                </button>
+                <button
+                  onClick={() => { setShowServerBackups(true); loadServerBackups(); }}
+                  className="flex items-center gap-2 px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg font-medium transition-all"
+                >
+                  <Upload className="w-4 h-4" />
+                  服务器恢复
+                </button>
+              </div>
+            </div>
           </div>
+          {backupMessage && (
+            <div className={`p-3 rounded-lg text-sm mb-2 ${
+              backupMessage.type === 'success'
+                ? 'bg-green-500/10 border border-green-500/20 text-green-400'
+                : 'bg-red-500/10 border border-red-500/20 text-red-400'
+            }`}>
+              {backupMessage.text}
+            </div>
+          )}
           <p className="text-neutral-500">管理所有挑战：编辑内容、封档参与、确认结果、修改参与者信息</p>
         </div>
 
@@ -473,6 +716,106 @@ export function AdminPanelPage() {
             );
           })}
         </div>
+
+        {/* 服务器备份列表弹窗 */}
+        {showServerBackups && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-6">
+            <div className="bg-neutral-900 rounded-2xl border border-neutral-800 p-6 w-full max-w-lg">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                  <Download className="w-5 h-5 text-purple-500" />
+                  服务器备份管理
+                </h3>
+                <button
+                  onClick={() => setShowServerBackups(false)}
+                  className="text-neutral-400 hover:text-white"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="mb-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                <p className="text-blue-400 text-sm flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4" />
+                  <span>自动备份：每天凌晨2点创建，保留最近7天</span>
+                </p>
+                <p className="text-blue-400 text-sm mt-1">
+                  <span>手动备份：需手动创建，不会被自动清理</span>
+                </p>
+              </div>
+
+              {isLoadingBackups ? (
+                <div className="flex justify-center py-8">
+                  <div className="w-6 h-6 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              ) : serverBackups.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-neutral-500">暂无服务器备份</p>
+                  <button
+                    onClick={createServerBackup}
+                    className="mt-4 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg font-medium"
+                  >
+                    创建第一个备份
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {serverBackups.map((backup) => {
+                    const date = new Date(backup.createdAt);
+                    const dateStr = date.toLocaleString('zh-CN');
+                    const sizeStr = backup.size < 1024 
+                      ? `${backup.size} B` 
+                      : `${(backup.size / 1024).toFixed(1)} KB`;
+                    
+                    // 判断备份类型
+                    const isAuto = backup.filename.startsWith('backup-auto-');
+
+                    return (
+                      <div key={backup.filename} className="flex items-center justify-between p-3 bg-neutral-800/50 rounded-lg">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-white text-sm font-medium">{backup.filename}</span>
+                            <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+                              isAuto 
+                                ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' 
+                                : 'bg-purple-500/10 text-purple-400 border border-purple-500/20'
+                            }`}>
+                              {isAuto ? '自动' : '手动'}
+                            </span>
+                          </div>
+                          <p className="text-neutral-500 text-xs">{dateStr} | {sizeStr}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => downloadServerBackup(backup.filename)}
+                            className="p-2 hover:bg-neutral-700 text-neutral-400 hover:text-white rounded-lg transition-colors"
+                            title="下载"
+                          >
+                            <Download className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => restoreFromServerBackup(backup.filename)}
+                            className="p-2 hover:bg-green-500/20 text-green-400 rounded-lg transition-colors"
+                            title="恢复"
+                          >
+                            <CheckCircle className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => deleteServerBackup(backup.filename)}
+                            className="p-2 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors"
+                            title="删除"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
