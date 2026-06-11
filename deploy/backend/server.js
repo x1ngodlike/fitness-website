@@ -574,6 +574,80 @@ app.get('/api/daily-report', (_req, res) => {
   res.json(report);
 });
 
+// 每日简报 - 纯文本版本（专供 iOS 快捷指令，直接拿文本即可）
+app.get('/api/daily-report/text', (_req, res) => {
+  const now = Date.now();
+  const oneDayMs = 24 * 60 * 60 * 1000;
+  const oneDayAgo = now - oneDayMs;
+
+  function getEffectiveStatus(challenge) {
+    if (challenge.status === 'completed') return 'completed';
+    const endDate = new Date(challenge.endDate).getTime();
+    if (challenge.status === 'active' && now > endDate) return 'pending';
+    return 'active';
+  }
+
+  const challengesWithStatus = db.challenges.map(c => ({
+    ...c,
+    effectiveStatus: getEffectiveStatus(c),
+    essayCount: db.essays.filter(e => e.challengeId === c.id).length,
+  }));
+
+  const activeChallenges = challengesWithStatus.filter(c => c.effectiveStatus === 'active');
+  const pendingChallenges = challengesWithStatus.filter(c => c.effectiveStatus === 'pending');
+  const completedChallenges = challengesWithStatus.filter(c => c.effectiveStatus === 'completed');
+  const todayEssays = db.essays.filter(e => e.createdAt >= oneDayAgo);
+
+  const recentEssays = [...db.essays]
+    .sort((a, b) => b.createdAt - a.createdAt)
+    .slice(0, 5)
+    .map(essay => {
+      const challenge = db.challenges.find(c => c.id === essay.challengeId);
+      return {
+        content: essay.content,
+        sentiment: essay.sentiment,
+        challengeTheme: challenge ? challenge.theme : '未知挑战',
+      };
+    });
+
+  const lines = [];
+  lines.push(`📊 每日简报 · ${new Date(now).toLocaleDateString('zh-CN')}`);
+  lines.push('══════════════════════');
+  lines.push(`🏃 进行中挑战：${activeChallenges.length} 个`);
+  lines.push(`⏰ 待确认：${pendingChallenges.length} 个`);
+  lines.push(`✅ 已结束：${completedChallenges.length} 个`);
+  lines.push(`📝 今日小作文：${todayEssays.length} 篇`);
+  lines.push('');
+
+  if (activeChallenges.length > 0) {
+    lines.push('🔥 进行中的挑战：');
+    activeChallenges.forEach((c, i) => {
+      lines.push(`  ${i + 1}. ${c.theme}（${c.hostName}）· ${c.essayCount}篇动态`);
+    });
+    lines.push('');
+  }
+
+  if (pendingChallenges.length > 0) {
+    lines.push('⏳ 等待确认：');
+    pendingChallenges.forEach((c, i) => {
+      lines.push(`  ${i + 1}. ${c.theme}（${c.hostName}）`);
+    });
+    lines.push('');
+  }
+
+  if (recentEssays.length > 0) {
+    lines.push('💬 最新小作文：');
+    recentEssays.forEach(e => {
+      const icon = e.sentiment === 'bullish' ? '📈' : '📉';
+      const content = e.content.length > 60 ? e.content.slice(0, 60) + '...' : e.content;
+      lines.push(`  ${icon} [${e.challengeTheme}] ${content}`);
+    });
+  }
+
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  res.send(lines.join('\n'));
+});
+
 function generateDailyReportText(data) {
   const lines = [];
   lines.push(`📊 每日简报 · ${data.date}`);
