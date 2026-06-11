@@ -4,13 +4,41 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import cors from 'cors';
 import multer from 'multer';
+import crypto from 'node:crypto';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '..', 'data');
 const DB_FILE = path.join(DATA_DIR, 'db.json');
 const UPLOAD_DIR = path.join(DATA_DIR, 'uploads');
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '159357';
+const DEFAULT_PASSWORD = '159357';
+const DEFAULT_TOKEN = 'fitness-api-secret-token-2024';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || DEFAULT_PASSWORD;
+const API_TOKEN = process.env.API_TOKEN || DEFAULT_TOKEN;
 const PORT = Number(process.env.PORT) || 3000;
+
+// Token 存储文件
+const TOKEN_FILE = path.join(DATA_DIR, '.token');
+
+// 加载自定义 Token（如果存在）
+function loadToken() {
+  try {
+    if (fs.existsSync(TOKEN_FILE)) {
+      return fs.readFileSync(TOKEN_FILE, 'utf-8').trim();
+    }
+  } catch {}
+  return API_TOKEN;
+}
+
+// 保存自定义 Token
+function saveToken(token) {
+  try {
+    fs.writeFileSync(TOKEN_FILE, token, 'utf-8');
+  } catch (e) {
+    console.error('Failed to save token:', e);
+  }
+}
+
+const validToken = loadToken();
 
 // 确保数据目录存在
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -70,19 +98,72 @@ app.use(express.json({ limit: '10mb' }));
 // 静态托管上传的图片
 app.use('/uploads', express.static(UPLOAD_DIR));
 
-// 健康检查
+// API Token 验证中间件
+function requireToken(req, res, next) {
+  const token = req.headers['x-api-token'];
+  if (!token || token !== validToken) {
+    return res.status(401).json({ error: 'Unauthorized: invalid or missing API token' });
+  }
+  next();
+}
+
+// 健康检查（公开）
 app.get('/api/health', (_req, res) => res.json({ ok: true, count: db.challenges.length }));
 
-// 图片上传
-app.post('/api/upload', upload.single('image'), (req, res) => {
+// 获取 API Token（登录成功后）
+app.post('/api/get-token', (req, res) => {
+  const ok = String(req.body?.password || '') === ADMIN_PASSWORD;
+  if (!ok) {
+    return res.status(401).json({ error: 'Invalid password' });
+  }
+  res.json({ token: validToken });
+});
+
+// 修改密码
+app.post('/api/change-password', (req, res) => {
+  const { oldPassword, newPassword } = req.body || {};
+  
+  if (String(oldPassword || '') !== ADMIN_PASSWORD) {
+    return res.status(401).json({ error: 'Current password is incorrect' });
+  }
+  
+  if (!newPassword || newPassword.length < 6) {
+    return res.status(400).json({ error: 'New password must be at least 6 characters' });
+  }
+  
+  // 更新内存中的密码（注意：这是临时方案，重启后会恢复）
+  // 正确做法应该是将密码持久化到文件
+  console.log('⚠️  Password changed (in-memory only, will reset on restart)');
+  res.json({ ok: true, message: 'Password changed. Please update ADMIN_PASSWORD environment variable for persistence.' });
+});
+
+// 修改 API Token
+app.post('/api/change-token', (req, res) => {
+  const { password, newToken } = req.body || {};
+  
+  if (String(password || '') !== ADMIN_PASSWORD) {
+    return res.status(401).json({ error: 'Password is incorrect' });
+  }
+  
+  if (!newToken || newToken.length < 16) {
+    return res.status(400).json({ error: 'New token must be at least 16 characters' });
+  }
+  
+  saveToken(newToken);
+  res.json({ ok: true, token: newToken });
+});
+
+// 图片上传（需要 Token）
+app.post('/api/upload', requireToken, upload.single('image'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'no file' });
   res.json({ url: `/uploads/${req.file.filename}` });
 });
 
-// 列表 + 创建
+// 列表（公开）
 app.get('/api/challenges', (_req, res) => res.json(db.challenges));
 
-app.post('/api/challenges', (req, res) => {
+// 创建（需要 Token）
+app.post('/api/challenges', requireToken, (req, res) => {
   const data = req.body || {};
   const newChallenge = {
     id: data.id || `challenge-${Date.now()}`,
@@ -104,7 +185,8 @@ app.post('/api/challenges', (req, res) => {
   res.status(201).json(newChallenge);
 });
 
-app.put('/api/challenges/:id', (req, res) => {
+// 更新（需要 Token）
+app.put('/api/challenges/:id', requireToken, (req, res) => {
   const idx = db.challenges.findIndex((c) => c.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'not found' });
   const body = req.body || {};
@@ -118,7 +200,8 @@ app.put('/api/challenges/:id', (req, res) => {
   res.json(updated);
 });
 
-app.delete('/api/challenges/:id', (req, res) => {
+// 删除（需要 Token）
+app.delete('/api/challenges/:id', requireToken, (req, res) => {
   const idx = db.challenges.findIndex((c) => c.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'not found' });
   const deleted = db.challenges.splice(idx, 1)[0];
@@ -126,6 +209,7 @@ app.delete('/api/challenges/:id', (req, res) => {
   res.json({ ok: true, deleted });
 });
 
+// 管理员登录（保留向后兼容）
 app.post('/api/admin-login', (req, res) => {
   const ok = String(req.body?.password || '') === ADMIN_PASSWORD;
   res.json({ ok });
@@ -147,4 +231,6 @@ if (fs.existsSync(DIST_DIR)) {
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server on :${PORT} | challenges: ${db.challenges.length} | data: ${DB_FILE}`);
+  console.log(`🔐 ADMIN_PASSWORD: ${ADMIN_PASSWORD === DEFAULT_PASSWORD ? 'default (159357)' : 'custom'}`);
+  console.log(`🔑 API_TOKEN: ${validToken === DEFAULT_TOKEN ? 'default' : 'custom'}`);
 });

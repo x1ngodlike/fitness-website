@@ -8,7 +8,10 @@ services:
     container_name: fitness-website
     restart: unless-stopped
     environment:
+      # 默认密码：159357（生产环境请修改）
       - ADMIN_PASSWORD=159357
+      # 默认Token：fitness-api-secret-token-2024（生产环境请修改）
+      - API_TOKEN=fitness-api-secret-token-2024
       - PORT=3000
       - DATA_DIR=/data
     volumes:

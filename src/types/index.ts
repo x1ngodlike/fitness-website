@@ -26,5 +26,3 @@ export interface Challenge {
 }
 
 export type ChallengeStatus = 'all' | 'active' | 'pending' | 'completed';
-
-export const ADMIN_PASSWORD = '159357';

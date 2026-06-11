@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Challenge, Participant, ADMIN_PASSWORD } from '../types';
+import { Challenge, Participant } from '../types';
 import { mockChallenges } from '../data/mockData';
 
 export type EnvMode = 'test' | 'production';
@@ -7,35 +7,73 @@ export type EnvMode = 'test' | 'production';
 // —— API 地址：开发时用 Vite dev server 反向代理，生产时走同域 /api ——
 const API_BASE = '/api';
 
+// —— Token 存储键 ——
+const KEY_META = 'challenge-meta-v1';
+const KEY_API_TOKEN = 'challenge-api-token';
+
+interface Meta {
+  envMode: EnvMode;
+  isAdminAuthenticated: boolean;
+  adminPassword?: string;
+}
+
+const meta: Meta = (() => {
+  try {
+    const raw = localStorage.getItem(KEY_META);
+    return raw ? JSON.parse(raw) : { envMode: 'production' as EnvMode, isAdminAuthenticated: false };
+  } catch { return { envMode: 'production' as EnvMode, isAdminAuthenticated: false }; }
+})();
+
+const loadToken = (): string | null => {
+  try {
+    return localStorage.getItem(KEY_API_TOKEN);
+  } catch { return null; }
+};
+
+const saveMeta = (payload: Partial<Meta>) => {
+  try {
+    const current = JSON.parse(localStorage.getItem(KEY_META) || '{}');
+    localStorage.setItem(KEY_META, JSON.stringify({ ...current, ...payload }));
+  } catch {}
+};
+
+const saveToken = (token: string | null) => {
+  try {
+    if (token) {
+      localStorage.setItem(KEY_API_TOKEN, token);
+    } else {
+      localStorage.removeItem(KEY_API_TOKEN);
+    }
+  } catch {}
+};
+
 // —— 轻量 fetch wrapper ——
 const http = {
-  async get<T>(path: string): Promise<T> {
-    const res = await fetch(API_BASE + path);
+  async get<T>(path: string, token?: string | null): Promise<T> {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) headers['x-api-token'] = token;
+    const res = await fetch(API_BASE + path, { headers });
     if (!res.ok) throw new Error(`GET ${path} failed: ${res.status}`);
     return res.json() as Promise<T>;
   },
-  async post<T>(path: string, body: unknown): Promise<T> {
-    const res = await fetch(API_BASE + path, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
+  async post<T>(path: string, body: unknown, token?: string | null): Promise<T> {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) headers['x-api-token'] = token;
+    const res = await fetch(API_BASE + path, { method: 'POST', headers, body: JSON.stringify(body) });
     if (!res.ok) throw new Error(`POST ${path} failed: ${res.status}`);
     return res.json() as Promise<T>;
   },
-  async put<T>(path: string, body: unknown): Promise<T> {
-    const res = await fetch(API_BASE + path, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
+  async put<T>(path: string, body: unknown, token?: string | null): Promise<T> {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) headers['x-api-token'] = token;
+    const res = await fetch(API_BASE + path, { method: 'PUT', headers, body: JSON.stringify(body) });
     if (!res.ok) throw new Error(`PUT ${path} failed: ${res.status}`);
     return res.json() as Promise<T>;
   },
-  async delete<T>(path: string): Promise<T> {
-    const res = await fetch(API_BASE + path, {
-      method: 'DELETE',
-    });
+  async delete<T>(path: string, token?: string | null): Promise<T> {
+    const headers: Record<string, string> = {};
+    if (token) headers['x-api-token'] = token;
+    const res = await fetch(API_BASE + path, { method: 'DELETE', headers });
     if (!res.ok) throw new Error(`DELETE ${path} failed: ${res.status}`);
     return res.json() as Promise<T>;
   },
@@ -56,20 +94,9 @@ interface ChallengeStore {
   setChallengeResult: (challengeId: string, hostResult: 'success' | 'failed') => Promise<void>;
   updateParticipant: (challengeId: string, participantId: string, updates: Partial<Participant>) => Promise<void>;
   deleteParticipant: (challengeId: string, participantId: string) => Promise<void>;
+  deleteChallenge: (challengeId: string) => Promise<void>;
   getChallengeById: (id: string) => Challenge | undefined;
 }
-
-// —— 登录态和环境模式放 localStorage（浏览器侧偏好），挑战数据放后端 db.json ——
-const KEY_META = 'challenge-meta-v1';
-const meta = (() => {
-  try {
-    const raw = localStorage.getItem(KEY_META);
-    return raw ? JSON.parse(raw) : {};
-  } catch { return {}; }
-})();
-const saveMeta = (payload: unknown) => {
-  try { localStorage.setItem(KEY_META, JSON.stringify(payload)); } catch {}
-};
 
 export const useChallengeStore = create<ChallengeStore>((set, get) => ({
   challenges: [],
@@ -95,22 +122,41 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
   },
 
   authenticateAdmin: async (password) => {
-    if (password !== ADMIN_PASSWORD) return false;
-    // 测试环境：不走后端；正式环境：向后端确认
-    if (get().envMode === 'production') {
-      try {
-        const r = await http.post<{ ok: boolean }>('/admin-login', { password });
-        if (!r.ok) return false;
-      } catch { return false; }
+    // 测试环境：不走后端
+    if (get().envMode === 'test') {
+      // 测试环境也验证密码（本地定义的测试密码）
+      const TEST_ADMIN_PASSWORD = 'admin123';
+      if (password !== TEST_ADMIN_PASSWORD) return false;
+      set({ isAdminAuthenticated: true });
+      saveMeta({ envMode: get().envMode, isAdminAuthenticated: true, adminPassword: password });
+      return true;
     }
-    set({ isAdminAuthenticated: true });
-    saveMeta({ envMode: get().envMode, isAdminAuthenticated: true });
-    return true;
+    
+    // 正式环境：向后端验证密码并获取 token
+    try {
+      // 先验证密码
+      const loginRes = await http.post<{ ok: boolean }>('/admin-login', { password });
+      if (!loginRes.ok) return false;
+      
+      // 获取 API Token
+      const tokenRes = await http.post<{ token: string }>('/get-token', { password });
+      if (!tokenRes.token) return false;
+      
+      // 存储 token 和密码
+      saveToken(tokenRes.token);
+      saveMeta({ envMode: get().envMode, isAdminAuthenticated: true, adminPassword: password });
+      set({ isAdminAuthenticated: true });
+      return true;
+    } catch (e) {
+      console.error('Authentication failed:', e);
+      return false;
+    }
   },
 
   logoutAdmin: () => {
+    saveToken(null);
+    saveMeta({ envMode: get().envMode, isAdminAuthenticated: false, adminPassword: undefined });
     set({ isAdminAuthenticated: false });
-    saveMeta({ envMode: get().envMode, isAdminAuthenticated: false });
   },
 
   setEnvMode: (mode) => {
@@ -136,7 +182,8 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
       return;
     }
     try {
-      await http.post('/challenges', newChallenge);
+      const token = loadToken();
+      await http.post('/challenges', newChallenge, token);
       set((s) => ({ challenges: [...s.challenges, newChallenge] }));
     } catch (e) {
       console.error(e);
@@ -151,7 +198,8 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
     if (mode === 'test') return;
     try {
       const latest = get().challenges.find((c) => c.id === challengeId);
-      if (latest) await http.put(`/challenges/${challengeId}`, latest);
+      const token = loadToken();
+      if (latest) await http.put(`/challenges/${challengeId}`, latest, token);
     } catch (e) { console.error(e); }
   },
 
@@ -163,7 +211,8 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
     if (mode === 'test') return;
     try {
       const latest = get().challenges.find((c) => c.id === challengeId);
-      if (latest) await http.put(`/challenges/${challengeId}`, latest);
+      const token = loadToken();
+      if (latest) await http.put(`/challenges/${challengeId}`, latest, token);
     } catch (e) { console.error(e); }
   },
 
@@ -195,7 +244,8 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
     if (get().envMode === 'test') return true;
     try {
       const latest = get().challenges.find((c) => c.id === challengeId);
-      if (latest) await http.put(`/challenges/${challengeId}`, latest);
+      const token = loadToken();
+      if (latest) await http.put(`/challenges/${challengeId}`, latest, token);
       return true;
     } catch (e) {
       console.error(e);
@@ -219,7 +269,8 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
     if (get().envMode === 'test') return;
     try {
       const latest = get().challenges.find((c) => c.id === challengeId);
-      if (latest) await http.put(`/challenges/${challengeId}`, latest);
+      const token = loadToken();
+      if (latest) await http.put(`/challenges/${challengeId}`, latest, token);
     } catch (e) { console.error(e); }
   },
 
@@ -234,7 +285,8 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
     if (get().envMode === 'test') return;
     try {
       const latest = get().challenges.find((c) => c.id === challengeId);
-      if (latest) await http.put(`/challenges/${challengeId}`, latest);
+      const token = loadToken();
+      if (latest) await http.put(`/challenges/${challengeId}`, latest, token);
     } catch (e) { console.error(e); }
   },
 
@@ -249,7 +301,8 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
     if (get().envMode === 'test') return;
     try {
       const latest = get().challenges.find((c) => c.id === challengeId);
-      if (latest) await http.put(`/challenges/${challengeId}`, latest);
+      const token = loadToken();
+      if (latest) await http.put(`/challenges/${challengeId}`, latest, token);
     } catch (e) { console.error(e); }
   },
 
@@ -259,7 +312,8 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
     }));
     if (get().envMode === 'test') return;
     try {
-      await http.delete(`/challenges/${challengeId}`);
+      const token = loadToken();
+      await http.delete(`/challenges/${challengeId}`, token);
     } catch (e) { console.error(e); }
   },
 
