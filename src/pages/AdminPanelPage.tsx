@@ -344,25 +344,28 @@ export function AdminPanelPage() {
   return (
     <div className="min-h-screen bg-neutral-950">
       <div className="max-w-4xl mx-auto px-6 pt-24 pb-16">
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-2">
+        <div className="mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-2">
             <div className="flex items-center gap-3">
               <Shield className="w-8 h-8 text-orange-500" />
-              <h1 className="text-3xl font-bold text-white">管理面板</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold text-white">管理面板</h1>
             </div>
-            <div className="flex items-center gap-4">
+            {/* 操作按钮组 */}
+            <div className="flex flex-col sm:flex-row gap-3">
               {/* 本地操作组 */}
-              <div className="flex items-center gap-2 bg-neutral-800/50 rounded-lg p-1">
+              <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-2 bg-neutral-800/50 rounded-lg p-1">
                 <button
                   onClick={handleBackup}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-all"
+                  className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-all text-sm"
                 >
                   <Download className="w-4 h-4" />
-                  下载备份
+                  <span className="hidden sm:inline">下载备份</span>
+                  <span className="sm:hidden">下载</span>
                 </button>
-                <label className="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-all cursor-pointer">
+                <label className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-all cursor-pointer text-sm">
                   <Upload className="w-4 h-4" />
-                  上传恢复
+                  <span className="hidden sm:inline">上传恢复</span>
+                  <span className="sm:hidden">上传</span>
                   <input
                     type="file"
                     accept=".json"
@@ -373,20 +376,22 @@ export function AdminPanelPage() {
                 </label>
               </div>
               {/* 服务器操作组 */}
-              <div className="flex items-center gap-2 bg-neutral-800/50 rounded-lg p-1">
+              <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-2 bg-neutral-800/50 rounded-lg p-1">
                 <button
                   onClick={createServerBackup}
-                  className="flex items-center gap-2 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg font-medium transition-all"
+                  className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg font-medium transition-all text-sm"
                 >
                   <Download className="w-4 h-4" />
-                  服务器备份
+                  <span className="hidden sm:inline">服务器备份</span>
+                  <span className="sm:hidden">服务备份</span>
                 </button>
                 <button
                   onClick={() => { setShowServerBackups(true); loadServerBackups(); }}
-                  className="flex items-center gap-2 px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg font-medium transition-all"
+                  className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg font-medium transition-all text-sm"
                 >
                   <Upload className="w-4 h-4" />
-                  服务器恢复
+                  <span className="hidden sm:inline">服务器恢复</span>
+                  <span className="sm:hidden">服务恢复</span>
                 </button>
               </div>
             </div>

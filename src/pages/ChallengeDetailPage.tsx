@@ -335,33 +335,36 @@ export function ChallengeDetailPage() {
 
           {/* 参与者列表 */}
           <div className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <Users className="w-4 h-4 text-orange-500" />
-                参与者列表
-                {totalCount > 0 && (
-                  <span className="text-sm font-normal text-neutral-500 ml-1">
-                    {supportLabel}{supportCount} {opposeLabel}{opposeCount}
-                  </span>
-                )}
-              </h2>
-              {challenge.status === 'active' && !challenge.isBlocked && !isExpired() && (
-                <button
-                  onClick={() => {
-                    setShowJoinModal(true);
-                    setJoinError('');
-                  }}
-                  className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-all"
-                >
-                  立即参与
-                </button>
-              )}
-              {challenge.isBlocked && challenge.status === 'active' && (
-                <span className="px-4 py-2 text-sm text-red-400 bg-red-500/10 rounded-lg border border-red-500/20">
-                  已封档，暂停参与
-                </span>
-              )}
-            </div>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                <h2 className="text-lg font-bold text-white flex items-center gap-2 flex-wrap">
+                  <Users className="w-4 h-4 text-orange-500 flex-shrink-0" />
+                  参与者列表
+                  {totalCount > 0 && (
+                    <span className="text-sm font-normal text-neutral-500">
+                      {supportLabel}{supportCount} {opposeLabel}{opposeCount}
+                    </span>
+                  )}
+                </h2>
+                <div className="flex items-center gap-2">
+                  {challenge.status === 'active' && !challenge.isBlocked && !isExpired() && (
+                    <button
+                      onClick={() => {
+                        setShowJoinModal(true);
+                        setJoinError('');
+                      }}
+                      className="flex-1 sm:flex-none px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-all"
+                    >
+                      立即参与
+                    </button>
+                  )}
+                  {challenge.isBlocked && challenge.status === 'active' && (
+                    <div className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 text-sm text-red-400 bg-red-500/10 rounded-lg border border-red-500/20">
+                      <Lock className="w-4 h-4" />
+                      <span>已封档，暂停参与</span>
+                    </div>
+                  )}
+                </div>
+              </div>
 
             {/* 管理员设置挑战结果 */}
             {isAdminAuthenticated && effectiveStatus === 'pending' && (
@@ -451,8 +454,8 @@ export function ChallengeDetailPage() {
 
       {/* 参与挑战模态框 */}
       {showJoinModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-6">
-          <div className="bg-neutral-900 rounded-2xl border border-neutral-800 p-6 w-full max-w-md">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-end sm:flex-center z-50 p-4 sm:p-6">
+          <div className="bg-neutral-900 rounded-t-3xl sm:rounded-2xl border border-neutral-800 p-6 w-full sm:max-w-md max-h-[90vh] overflow-y-auto">
             <h3 className="text-xl font-bold text-white mb-4">参与挑战</h3>
             <p className="text-neutral-400 mb-6">
               填写信息并选择你的态度

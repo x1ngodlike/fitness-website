@@ -80,18 +80,18 @@ export function HomePage() {
 
   return (
     <div className="min-h-screen bg-neutral-950">
-      <div className="max-w-7xl mx-auto px-6 pt-24 pb-16">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-24 pb-16">
         <div className="text-center mb-8">
-          <h1 className="text-4xl md:text-5xl font-bold text-white mb-3">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-3">
             <span className="text-white">群健康</span><span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-orange-600">挑战赛</span>
           </h1>
-          <p className="text-neutral-400 text-base max-w-2xl mx-auto">
+          <p className="text-neutral-400 text-sm sm:text-base max-w-2xl mx-auto px-4">
             🏃‍♂️ 一起运动 · 一起健康 · 一起成长 💪
           </p>
         </div>
 
-        <div className="flex flex-col md:flex-row gap-3 mb-8">
-          <div className="relative flex-1">
+        <div className="flex flex-col gap-3 mb-8">
+          <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-500" />
             <input
               type="text"

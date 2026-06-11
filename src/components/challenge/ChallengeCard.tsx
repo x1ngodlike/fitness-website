@@ -62,39 +62,40 @@ export function ChallengeCard({ challenge }: ChallengeCardProps) {
       to={`/challenge/${challenge.id}`}
       className="group block bg-neutral-900 rounded-2xl border border-neutral-800 overflow-hidden hover:border-orange-500/30 transition-all duration-300 hover:shadow-xl hover:shadow-orange-500/5"
     >
-      <div className="relative aspect-[16/9] overflow-hidden">
+      <div className="relative aspect-[16/9] sm:aspect-[4/3] overflow-hidden">
         <img
           src={challenge.coverImage}
           alt={challenge.theme}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-neutral-900 via-transparent to-transparent" />
-        <div className="absolute top-4 right-4 flex flex-wrap gap-2 justify-end">
+        <div className="absolute top-3 sm:top-4 right-3 sm:right-4 flex flex-wrap gap-1.5 sm:gap-2 justify-end">
           {challenge.status === 'active' && challenge.isBlocked && (
-            <span className="px-3 py-1 text-xs font-medium rounded-full border bg-red-500/10 text-red-400 border-red-500/20 inline-flex items-center gap-1">
+            <span className="px-2.5 sm:px-3 py-0.5 sm:py-1 text-xs font-medium rounded-full border bg-red-500/10 text-red-400 border-red-500/20 inline-flex items-center gap-1">
               <Lock className="w-3 h-3" />
               封档
             </span>
           )}
-          <span className={`px-3 py-1 text-xs font-medium rounded-full border ${getStatusColor(effectiveStatus)}`}>
+          <span className={`px-2.5 sm:px-3 py-0.5 sm:py-1 text-xs font-medium rounded-full border ${getStatusColor(effectiveStatus)}`}>
             {getStatusText(effectiveStatus)}
           </span>
         </div>
       </div>
 
-      <div className="p-4">
-        <h3 className="text-lg font-bold text-white mb-1 group-hover:text-orange-400 transition-colors">
+      <div className="p-3 sm:p-4">
+        <h3 className="text-base sm:text-lg font-bold text-white mb-1.5 sm:mb-1 group-hover:text-orange-400 transition-colors line-clamp-2">
           {challenge.theme}
         </h3>
 
-        <div className="flex items-center gap-2 text-sm text-neutral-500 mb-2">
+        <div className="flex items-center gap-2 text-xs sm:text-sm text-neutral-500 mb-1.5 sm:mb-2">
           <span className="text-orange-500 font-medium">发起人：{challenge.hostName}</span>
         </div>
 
-        <div className="flex items-center gap-3 text-sm text-neutral-500">
+        <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm text-neutral-500">
           <div className="flex items-center gap-1">
             <Calendar className="w-3 h-3" />
-            <span>{challenge.startDate} ~ {challenge.endDate}</span>
+            <span className="hidden sm:inline">{challenge.startDate} ~ </span>
+            <span>{challenge.endDate}</span>
           </div>
           <div className="flex items-center gap-1">
             <Users className="w-3 h-3" />
@@ -103,8 +104,8 @@ export function ChallengeCard({ challenge }: ChallengeCardProps) {
         </div>
 
         {challenge.status === 'active' && !isExpired() && (
-          <div className="mt-3 pt-3 border-t border-neutral-800">
-            <div className="flex items-center justify-between text-sm">
+          <div className="mt-2.5 sm:mt-3 pt-2.5 sm:pt-3 border-t border-neutral-800">
+            <div className="flex items-center justify-between text-xs sm:text-sm">
               <span className="text-neutral-500">剩余时间</span>
               <span className="text-white font-medium">{daysLeft()} 天</span>
             </div>
