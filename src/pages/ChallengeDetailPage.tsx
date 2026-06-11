@@ -278,11 +278,11 @@ export function ChallengeDetailPage() {
                   <p className="text-sm text-neutral-500 mb-2">挑战者资金</p>
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <span className="text-neutral-400 text-sm">通赔金额</span>
+                      <span className="text-neutral-400 text-sm">最高赔付</span>
                       <span className="text-white font-bold">{challenge.maxPayout}</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-neutral-400 text-sm">底仓金额</span>
+                      <span className="text-neutral-400 text-sm">最低赔付</span>
                       <span className="text-white font-bold">{challenge.minStake}</span>
                     </div>
                   </div>
@@ -525,7 +525,7 @@ export function ChallengeDetailPage() {
                     {supportLabel}
                   </span>
                   <span className="block text-xs text-neutral-500">
-                    信 {challenge.hostName} 能成功
+                    认为 {challenge.hostName} 能成功
                   </span>
                 </button>
                 <button
@@ -540,7 +540,7 @@ export function ChallengeDetailPage() {
                     {opposeLabel}
                   </span>
                   <span className="block text-xs text-neutral-500">
-                    信 {challenge.hostName} 会失败
+                    认为 {challenge.hostName} 会失败
                   </span>
                 </button>
               </div>

@@ -240,7 +240,7 @@ export function CreateChallengePage() {
               <div>
                 <label className="flex items-center gap-2 text-white font-medium mb-3">
                   <DollarSign className="w-5 h-5 text-orange-500" />
-                  通赔金额
+                  最高赔付
                   <span className="text-xs text-neutral-500 font-normal">（失败后赔付上限）</span>
                 </label>
                 <input
@@ -255,7 +255,7 @@ export function CreateChallengePage() {
               <div>
                 <label className="flex items-center gap-2 text-white font-medium mb-3">
                   <Flame className="w-5 h-5 text-orange-500" />
-                  底仓金额
+                  最低赔付
                   <span className="text-xs text-neutral-500 font-normal">（最少200）</span>
                 </label>
                 <input

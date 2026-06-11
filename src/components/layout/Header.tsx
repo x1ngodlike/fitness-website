@@ -1,12 +1,18 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Dumbbell, Plus, Shield, LogOut, FlaskConical, Rocket } from 'lucide-react';
 import { useChallengeStore } from '../../store/challengeStore';
 
 export function Header() {
+  const navigate = useNavigate();
   const isAdminAuthenticated = useChallengeStore((state) => state.isAdminAuthenticated);
   const envMode = useChallengeStore((state) => state.envMode);
   const logoutAdmin = useChallengeStore((state) => state.logoutAdmin);
   const setEnvMode = useChallengeStore((state) => state.setEnvMode);
+
+  const handleLogout = () => {
+    logoutAdmin();
+    navigate('/');
+  };
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-neutral-950/80 backdrop-blur-xl border-b border-neutral-800">
@@ -65,7 +71,7 @@ export function Header() {
                 管理面板
               </Link>
               <button
-                onClick={logoutAdmin}
+                onClick={handleLogout}
                 className="flex items-center gap-2 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg font-medium transition-all border border-red-500/20"
               >
                 <LogOut className="w-4 h-4" />
