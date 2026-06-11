@@ -69,6 +69,8 @@ export function ChallengeCard({ challenge, essays, onEssayClick }: ChallengeCard
           src={challenge.coverImage}
           alt={challenge.theme}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          loading="lazy"
+          decoding="async"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-neutral-900 via-transparent to-transparent" />
         <div className="absolute top-3 sm:top-4 right-3 sm:right-4 flex flex-wrap gap-1.5 sm:gap-2 justify-end">

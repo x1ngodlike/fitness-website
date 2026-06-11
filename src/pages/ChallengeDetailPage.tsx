@@ -220,6 +220,8 @@ export function ChallengeDetailPage() {
               src={challenge.coverImage}
               alt={challenge.theme}
               className="w-full h-full object-cover"
+              loading="eager"
+              decoding="async"
             />
             <div className="absolute top-4 right-4 flex flex-wrap gap-2 justify-end">
               <span className={`px-3 py-1 text-sm font-medium rounded-full border ${getStatusColor(effectiveStatus)} inline-flex items-center gap-1`}>

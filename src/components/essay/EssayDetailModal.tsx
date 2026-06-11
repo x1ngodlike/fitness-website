@@ -3,6 +3,7 @@ import { X, Plus, Trash2, Image, ThumbsUp, ThumbsDown, Clock } from 'lucide-reac
 import { Essay, Challenge } from '../../types';
 import { useChallengeStore } from '../../store/challengeStore';
 import { formatTime } from '../../utils/format';
+import { ImagePreviewModal } from '../common/ImagePreviewModal';
 
 interface EssayDetailModalProps {
   challenge: Challenge;
@@ -12,6 +13,7 @@ interface EssayDetailModalProps {
 export function EssayDetailModal({ challenge, onClose }: EssayDetailModalProps) {
   const { essays, addEssay, deleteEssay, isAdminAuthenticated } = useChallengeStore();
   const [showAddModal, setShowAddModal] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
   const challengeEssays = essays.filter(e => e.challengeId === challenge.id) || [];
 
   return (
@@ -64,11 +66,15 @@ export function EssayDetailModal({ challenge, onClose }: EssayDetailModalProps) 
                 )}
 
                 {essay.imageUrl && (
-                  <div className="mb-3 rounded-lg overflow-hidden">
+                  <div
+                    className="mb-3 rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
+                    onClick={() => setPreviewImage(essay.imageUrl!)}
+                  >
                     <img
                       src={essay.imageUrl}
                       alt="小作文配图"
-                      className="w-full h-48 object-cover"
+                      className="w-full object-contain bg-neutral-950 max-h-64"
+                      loading="lazy"
                     />
                   </div>
                 )}
@@ -114,6 +120,14 @@ export function EssayDetailModal({ challenge, onClose }: EssayDetailModalProps) 
           hostName={challenge.hostName}
           onClose={() => setShowAddModal(false)}
           onSuccess={() => setShowAddModal(false)}
+        />
+      )}
+
+      {previewImage && (
+        <ImagePreviewModal
+          src={previewImage}
+          alt="图片预览"
+          onClose={() => setPreviewImage(null)}
         />
       )}
     </div>
@@ -251,6 +265,8 @@ function AddEssayModal({ challengeId, hostName, onClose, onSuccess }: AddEssayMo
                 src={imagePreview}
                 alt="预览"
                 className="w-full h-32 object-cover"
+                loading="lazy"
+                decoding="async"
               />
               <button
                 onClick={() => {

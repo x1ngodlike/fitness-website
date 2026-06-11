@@ -161,6 +161,8 @@ export function CreateChallengePage() {
                     src={coverPreview}
                     alt="封面预览"
                     className="w-full h-full object-cover"
+                    loading="lazy"
+                    decoding="async"
                     onError={() => setCoverPreview('')}
                   />
                 </div>

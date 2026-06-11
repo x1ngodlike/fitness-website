@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import cors from 'cors';
 import multer from 'multer';
 import crypto from 'node:crypto';
+import sharp from 'sharp';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '..', 'data');
@@ -232,6 +233,30 @@ const essayUpload = multer({
   },
 });
 
+// 图片压缩函数（优化大小，保持质量）
+async function compressImage(inputBuffer, maxWidth = 1920, quality = 85) {
+  try {
+    const image = sharp(inputBuffer);
+    const metadata = await image.metadata();
+
+    // 如果图片比最大宽度小，直接返回
+    if (metadata.width <= maxWidth) {
+      return image.toBuffer();
+    }
+
+    // 调整大小并压缩
+    return await image
+      .resize(maxWidth, null, { withoutEnlargement: true })
+      .jpeg({ quality, progressive: true })
+      .png({ compressionLevel: 9 })
+      .webp({ quality })
+      .toBuffer();
+  } catch (error) {
+    console.error('Image compression error:', error);
+    return inputBuffer; // 压缩失败时返回原图
+  }
+}
+
 const defaultData = { challenges: [], essays: [] };
 function loadDB() {
   try {
@@ -430,11 +455,32 @@ app.get('/api/backup/download/:filename', requireToken, (req, res) => {
   res.sendFile(filePath);
 });
 
-// 图片上传（公开，用于小作文）
-app.post('/api/upload', essayUpload.single('image'), (req, res) => {
+// 图片上传（公开，用于小作文，带压缩）
+app.post('/api/upload', essayUpload.single('image'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'no file' });
-  const challengeId = req.body.challengeId || req.query.challengeId || 'unknown';
-  res.json({ url: `/essay-uploads/${challengeId}/${req.file.filename}` });
+  
+  try {
+    const challengeId = req.body.challengeId || req.query.challengeId || 'unknown';
+    const originalPath = req.file.path;
+    const originalSize = req.file.size;
+    
+    // 压缩图片
+    const compressedBuffer = await compressImage(req.file.buffer);
+    const compressedSize = compressedBuffer.length;
+    
+    // 如果压缩后更小，则使用压缩后的图片
+    if (compressedSize < originalSize) {
+      fs.writeFileSync(originalPath, compressedBuffer);
+      console.log(`[upload] Image compressed: ${challengeId}, ${(originalSize / 1024).toFixed(1)}KB -> ${(compressedSize / 1024).toFixed(1)}KB`);
+    }
+    
+    res.json({ url: `/essay-uploads/${challengeId}/${req.file.filename}` });
+  } catch (error) {
+    console.error('Upload error:', error);
+    // 即使压缩失败，也返回原图路径
+    const challengeId = req.body.challengeId || req.query.challengeId || 'unknown';
+    res.json({ url: `/essay-uploads/${challengeId}/${req.file.filename}` });
+  }
 });
 
 // 图片上传（需要 Token，管理员专用）
