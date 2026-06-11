@@ -21,6 +21,7 @@ export function CreateChallengePage() {
 
   const [coverPreview, setCoverPreview] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isAdminAuthenticated) {
@@ -76,19 +77,32 @@ export function CreateChallengePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    await addChallenge({
-      theme: formData.theme,
-      goal: formData.goal,
-      hostName: formData.hostName,
-      coverImage: formData.coverImage || 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=Fitness%20challenge%20poster%2C%20modern%20gym%20background%2C%20energetic%20orange%20lighting%2C%20motivational%20atmosphere&image_size=landscape_16_9',
-      startDate: formData.startDate,
-      endDate: formData.endDate,
-      maxPayout: formData.maxPayout,
-      minStake: formData.minStake,
-    });
-
-    navigate('/');
+    if (submitting) return;
+    
+    setSubmitting(true);
+    
+    const savedFormData = { ...formData };
+    
+    setTimeout(async () => {
+      try {
+        await addChallenge({
+          theme: savedFormData.theme,
+          goal: savedFormData.goal,
+          hostName: savedFormData.hostName,
+          coverImage: savedFormData.coverImage || 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=Fitness%20challenge%20poster%2C%20modern%20gym%20background%2C%20energetic%20orange%20lighting%2C%20motivational%20atmosphere&image_size=landscape_16_9',
+          startDate: savedFormData.startDate,
+          endDate: savedFormData.endDate,
+          maxPayout: savedFormData.maxPayout,
+          minStake: savedFormData.minStake,
+        });
+        navigate('/');
+      } catch (err) {
+        console.error('Create challenge failed:', err);
+        alert('创建失败，请重试');
+      } finally {
+        setSubmitting(false);
+      }
+    }, 0);
   };
 
   const isValid = formData.theme && formData.goal && formData.hostName && formData.startDate && formData.endDate && formData.maxPayout >= 0 && formData.minStake >= 200;

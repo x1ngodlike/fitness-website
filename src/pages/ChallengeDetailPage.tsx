@@ -17,6 +17,7 @@ export function ChallengeDetailPage() {
   const [myStakeInput, setMyStakeInput] = useState('100');
   const [selectedSide, setSelectedSide] = useState<'support' | 'oppose' | null>(null);
   const [joinError, setJoinError] = useState('');
+  const [joining, setJoining] = useState(false);
 
   if (!challenge) {
     return (
@@ -44,16 +45,37 @@ export function ChallengeDetailPage() {
       setJoinError(`参与金额不能低于${MIN_PARTICIPANT_STAKE}元`);
       return;
     }
-    const ok = await joinChallenge(challenge.id, participantName, myStake, selectedSide);
-    if (ok) {
-      setShowJoinModal(false);
-      setParticipantName('');
-      setMyStakeInput('100');
-      setSelectedSide(null);
-      setJoinError('');
-    } else {
-      setJoinError('挑战已封档或已结束，无法参与');
-    }
+    if (joining) return;
+    
+    setJoining(true);
+    
+    const savedName = participantName;
+    const savedStake = myStakeInput;
+    const savedSide = selectedSide;
+    
+    setShowJoinModal(false);
+    setParticipantName('');
+    setMyStakeInput('100');
+    setSelectedSide(null);
+    setJoinError('');
+    
+    setTimeout(async () => {
+      try {
+        const ok = await joinChallenge(challenge.id, savedName, myStake, savedSide);
+        if (!ok) {
+          throw new Error('挑战已封档或已结束，无法参与');
+        }
+      } catch (e) {
+        console.error('Join challenge failed:', e);
+        setShowJoinModal(true);
+        setParticipantName(savedName);
+        setMyStakeInput(savedStake);
+        setSelectedSide(savedSide);
+        setJoinError((e as Error).message || '参与失败，请重试');
+      } finally {
+        setJoining(false);
+      }
+    }, 0);
   };
 
   const getStatusColor = (status: Challenge['status']) => {
