@@ -456,8 +456,8 @@ export function ChallengeDetailPage() {
 
       {/* 参与挑战模态框 */}
       {showJoinModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-end sm:flex-center z-50 p-4 sm:p-6">
-          <div className="bg-neutral-900 rounded-t-3xl sm:rounded-2xl border border-neutral-800 p-6 w-full sm:max-w-md max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 sm:p-6">
+          <div className="bg-neutral-900 rounded-2xl border border-neutral-800 p-6 w-full sm:max-w-md max-h-[90vh] overflow-y-auto">
             <h3 className="text-xl font-bold text-white mb-4">参与挑战</h3>
             <p className="text-neutral-400 mb-6">
               填写信息并选择你的态度
