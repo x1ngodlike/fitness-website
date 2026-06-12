@@ -606,11 +606,14 @@ app.get('/api/daily-report/text', (_req, res) => {
   const yesterdayEnd = new Date(new Date().toDateString()).getTime() - 1;
 
   const activeChallenges = db.challenges.filter(c => c.status === 'active');
-  const activeWithDaysLeft = activeChallenges.map(c => {
-    const endDate = new Date(c.endDate).getTime();
-    const daysLeft = Math.ceil((endDate - now) / oneDayMs);
-    return { ...c, daysLeft: Math.max(0, daysLeft) };
-  }).filter(c => c.daysLeft >= 0);
+  const activeWithDaysLeft = activeChallenges
+    .map(c => {
+      const endDate = new Date(c.endDate).getTime();
+      const daysLeft = Math.ceil((endDate - now) / oneDayMs);
+      return { ...c, daysLeft: Math.max(0, daysLeft) };
+    })
+    .filter(c => c.daysLeft >= 0)
+    .sort((a, b) => a.daysLeft - b.daysLeft);
 
   const yesterdayEssays = db.essays
     .filter(e => e.createdAt >= yesterdayStart && e.createdAt <= yesterdayEnd)

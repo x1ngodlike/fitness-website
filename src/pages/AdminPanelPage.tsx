@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Shield, Edit2, CheckCircle, X, Lock, Unlock, Users, Save, Trash2, UserX, Download, Upload, AlertTriangle } from 'lucide-react';
 import { useChallengeStore, loadToken } from '../store/challengeStore';
 import { Challenge, Participant } from '../types';
@@ -49,6 +49,50 @@ export function AdminPanelPage() {
   const [serverBackups, setServerBackups] = useState<Array<{ filename: string; size: number; createdAt: string }>>([]);
   const [isLoadingBackups, setIsLoadingBackups] = useState(false);
   const init = useChallengeStore((state) => state.init);
+
+  // 官网地址设置
+  const [websiteUrl, setWebsiteUrl] = useState('');
+  const [settingsSaved, setSettingsSaved] = useState(false);
+
+  // 加载设置
+  const loadSettings = async () => {
+    try {
+      const res = await fetch('/api/settings');
+      const data = await res.json();
+      if (data.websiteUrl) setWebsiteUrl(data.websiteUrl);
+    } catch (e) {
+      console.error('Failed to load settings:', e);
+    }
+  };
+
+  // 保存设置
+  const saveSettings = async () => {
+    const token = localStorage.getItem('challenge-api-token');
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-token': token || '',
+        },
+        body: JSON.stringify({ websiteUrl }),
+      });
+      const result = await res.json();
+      if (result.ok) {
+        setSettingsSaved(true);
+        setTimeout(() => setSettingsSaved(false), 2000);
+      }
+    } catch (e) {
+      console.error('Failed to save settings:', e);
+    }
+  };
+
+  // 初始化时加载设置
+  useEffect(() => {
+    if (isAdminAuthenticated) {
+      loadSettings();
+    }
+  }, [isAdminAuthenticated]);
 
   // 获取服务器备份列表
   const loadServerBackups = async () => {
@@ -406,6 +450,32 @@ export function AdminPanelPage() {
               {backupMessage.text}
             </div>
           )}
+
+          {/* 官网地址设置 */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 p-4 bg-neutral-800/30 rounded-xl border border-neutral-800">
+            <div className="flex-1 w-full">
+              <label className="text-sm text-neutral-400 mb-1 block">官网地址</label>
+              <input
+                type="url"
+                value={websiteUrl}
+                onChange={(e) => setWebsiteUrl(e.target.value)}
+                placeholder="https://example.com"
+                className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white focus:outline-none focus:border-orange-500 text-sm"
+              />
+            </div>
+            <button
+              onClick={saveSettings}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all text-sm ${
+                settingsSaved
+                  ? 'bg-green-500 text-white'
+                  : 'bg-orange-500 hover:bg-orange-600 text-white'
+              }`}
+            >
+              <Save className="w-4 h-4" />
+              {settingsSaved ? '已保存' : '保存地址'}
+            </button>
+          </div>
+
           <p className="text-neutral-500">管理所有挑战：编辑内容、封档参与、确认结果、修改参与者信息</p>
         </div>
 
