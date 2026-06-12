@@ -292,9 +292,9 @@ function AddEssayModal({ challengeId, hostName, onClose, onSuccess }: AddEssayMo
             {/* 利空 - 绿色 - 左侧 */}
             <button
               onClick={() => setSentiment('bearish')}
-              className={`p-3 rounded-xl border-2 transition-all ${
+              className={`p-3 rounded-xl border-2 border-solid transition-all ${
                 sentiment === 'bearish'
-                  ? 'border-green-500 bg-green-500/10'
+                  ? 'border-green-500 bg-green-500/10 ring-2 ring-green-500/30'
                   : 'border-neutral-700 bg-neutral-800 hover:border-neutral-600'
               }`}
             >
@@ -306,9 +306,9 @@ function AddEssayModal({ challengeId, hostName, onClose, onSuccess }: AddEssayMo
             {/* 利多 - 红色 - 右侧 */}
             <button
               onClick={() => setSentiment('bullish')}
-              className={`p-3 rounded-xl border-2 transition-all ${
+              className={`p-3 rounded-xl border-2 border-solid transition-all ${
                 sentiment === 'bullish'
-                  ? 'border-red-500 bg-red-500/10'
+                  ? 'border-red-500 bg-red-500/10 ring-2 ring-red-500/30'
                   : 'border-neutral-700 bg-neutral-800 hover:border-neutral-600'
               }`}
             >

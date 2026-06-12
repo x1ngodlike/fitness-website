@@ -20,7 +20,6 @@
 
 button {
   outline: none;
-  border: none;
   background: none;
   padding: 0;
   margin: 0;
@@ -29,10 +28,7 @@ button {
   cursor: pointer;
 }
 
-button:focus {
-  outline: none;
-}
-
+button:focus,
 button:active {
   outline: none;
 }

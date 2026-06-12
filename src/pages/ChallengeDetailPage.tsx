@@ -520,9 +520,9 @@ export function ChallengeDetailPage() {
               <div className="grid grid-cols-2 gap-3">
                 <button
                   onClick={() => setSelectedSide('support')}
-                  className={`p-4 rounded-xl border-2 transition-all ${
+                  className={`p-4 rounded-xl border-2 border-solid transition-all ${
                     selectedSide === 'support'
-                      ? 'border-green-500 bg-green-500/10'
+                      ? 'border-green-500 bg-green-500/10 ring-2 ring-green-500/30'
                       : 'border-neutral-700 bg-neutral-800 hover:border-neutral-600'
                   }`}
                 >
@@ -535,9 +535,9 @@ export function ChallengeDetailPage() {
                 </button>
                 <button
                   onClick={() => setSelectedSide('oppose')}
-                  className={`p-4 rounded-xl border-2 transition-all ${
+                  className={`p-4 rounded-xl border-2 border-solid transition-all ${
                     selectedSide === 'oppose'
-                      ? 'border-red-500 bg-red-500/10'
+                      ? 'border-red-500 bg-red-500/10 ring-2 ring-red-500/30'
                       : 'border-neutral-700 bg-neutral-800 hover:border-neutral-600'
                   }`}
                 >
