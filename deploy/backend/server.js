@@ -255,7 +255,7 @@ async function compressImage(inputBuffer, maxWidth = 1920, quality = 85) {
   }
 }
 
-const defaultData = { challenges: [], essays: [] };
+const defaultData = { challenges: [], essays: [], settings: {} };
 function loadDB() {
   try {
     if (!fs.existsSync(DB_FILE)) {
@@ -266,10 +266,11 @@ function loadDB() {
     const parsed = JSON.parse(raw);
     if (!parsed.challenges) parsed.challenges = [];
     if (!parsed.essays) parsed.essays = [];
+    if (!parsed.settings) parsed.settings = {};
     return parsed;
   } catch (e) {
     console.error('DB load error:', e);
-    return { challenges: [], essays: [] };
+    return { challenges: [], essays: [], settings: {} };
   }
 }
 
@@ -453,6 +454,29 @@ app.get('/api/backup/download/:filename', requireToken, (req, res) => {
   res.sendFile(filePath);
 });
 
+// 获取设置（公开）
+app.get('/api/settings', (_req, res) => {
+  res.json(db.settings || {});
+});
+
+// 更新设置（需要 Token）
+app.put('/api/settings', requireToken, (req, res) => {
+  const { websiteUrl } = req.body || {};
+  
+  if (websiteUrl && typeof websiteUrl !== 'string') {
+    return res.status(400).json({ error: 'websiteUrl must be a string' });
+  }
+
+  if (!db.settings) db.settings = {};
+  
+  if (websiteUrl !== undefined) {
+    db.settings.websiteUrl = websiteUrl;
+  }
+  
+  saveDB(db);
+  res.json({ ok: true, settings: db.settings });
+});
+
 // 图片上传（公开，用于小作文，带压缩）
 app.post('/api/upload', essayUpload.single('image'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'no file' });
@@ -574,31 +598,22 @@ app.get('/api/daily-report', (_req, res) => {
   res.json(report);
 });
 
-// 每日简报 - 纯文本版本（专供 iOS 快捷指令，直接拿文本即可）
+// 每日简报 - 纯文本版本（专供 iOS 快捷指令）
 app.get('/api/daily-report/text', (_req, res) => {
   const now = Date.now();
   const oneDayMs = 24 * 60 * 60 * 1000;
-  const oneDayAgo = now - oneDayMs;
+  const yesterdayStart = new Date(new Date().toDateString()).getTime() - oneDayMs;
+  const yesterdayEnd = new Date(new Date().toDateString()).getTime() - 1;
 
-  function getEffectiveStatus(challenge) {
-    if (challenge.status === 'completed') return 'completed';
-    const endDate = new Date(challenge.endDate).getTime();
-    if (challenge.status === 'active' && now > endDate) return 'pending';
-    return 'active';
-  }
+  const activeChallenges = db.challenges.filter(c => c.status === 'active');
+  const activeWithDaysLeft = activeChallenges.map(c => {
+    const endDate = new Date(c.endDate).getTime();
+    const daysLeft = Math.ceil((endDate - now) / oneDayMs);
+    return { ...c, daysLeft: Math.max(0, daysLeft) };
+  }).filter(c => c.daysLeft >= 0);
 
-  const challengesWithStatus = db.challenges.map(c => ({
-    ...c,
-    effectiveStatus: getEffectiveStatus(c),
-    essayCount: db.essays.filter(e => e.challengeId === c.id).length,
-  }));
-
-  const activeChallenges = challengesWithStatus.filter(c => c.effectiveStatus === 'active');
-  const pendingChallenges = challengesWithStatus.filter(c => c.effectiveStatus === 'pending');
-  const completedChallenges = challengesWithStatus.filter(c => c.effectiveStatus === 'completed');
-  const todayEssays = db.essays.filter(e => e.createdAt >= oneDayAgo);
-
-  const recentEssays = [...db.essays]
+  const yesterdayEssays = db.essays
+    .filter(e => e.createdAt >= yesterdayStart && e.createdAt <= yesterdayEnd)
     .sort((a, b) => b.createdAt - a.createdAt)
     .slice(0, 5)
     .map(essay => {
@@ -607,45 +622,44 @@ app.get('/api/daily-report/text', (_req, res) => {
         content: essay.content,
         sentiment: essay.sentiment,
         challengeTheme: challenge ? challenge.theme : '未知挑战',
+        hostName: challenge ? challenge.hostName : '',
       };
     });
 
   const lines = [];
-  lines.push(`📊 每日简报 · ${new Date(now).toLocaleDateString('zh-CN')}`);
-  lines.push('══════════════════════');
-  lines.push(`🏃 进行中挑战：${activeChallenges.length} 个`);
-  lines.push(`⏰ 待确认：${pendingChallenges.length} 个`);
-  lines.push(`✅ 已结束：${completedChallenges.length} 个`);
-  lines.push(`📝 今日小作文：${todayEssays.length} 篇`);
+  const dateStr = new Date(now).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
+  lines.push(`📊 每日简报 · ${dateStr}`);
   lines.push('');
 
-  if (activeChallenges.length > 0) {
-    lines.push('🔥 进行中的挑战：');
-    activeChallenges.forEach((c, i) => {
-      lines.push(`  ${i + 1}. ${c.theme}（${c.hostName}）· ${c.essayCount}篇动态`);
+  if (activeWithDaysLeft.length > 0) {
+    lines.push('⏰ 挑战倒计时：');
+    activeWithDaysLeft.forEach((c) => {
+      const status = c.daysLeft === 0 ? '（今日截止）' : c.daysLeft === 1 ? '（最后1天）' : `（${c.daysLeft}天）`;
+      lines.push(`  • ${c.hostName}：${c.theme} ${status}`);
     });
     lines.push('');
   }
 
-  if (pendingChallenges.length > 0) {
-    lines.push('⏳ 等待确认：');
-    pendingChallenges.forEach((c, i) => {
-      lines.push(`  ${i + 1}. ${c.theme}（${c.hostName}）`);
-    });
-    lines.push('');
-  }
-
-  if (recentEssays.length > 0) {
-    lines.push('💬 最新小作文：');
-    recentEssays.forEach(e => {
+  if (yesterdayEssays.length > 0) {
+    lines.push('💬 昨日动态：');
+    yesterdayEssays.forEach(e => {
       const icon = e.sentiment === 'bullish' ? '📈' : '📉';
-      const content = e.content.length > 60 ? e.content.slice(0, 60) + '...' : e.content;
-      lines.push(`  ${icon} [${e.challengeTheme}] ${content}`);
+      const content = e.content.length > 50 ? e.content.slice(0, 50) + '...' : e.content;
+      lines.push(`  ${icon} ${e.hostName}：${content}`);
     });
+    lines.push('');
+  } else {
+    lines.push('💬 昨日暂无动态');
+    lines.push('');
+  }
+
+  if (db.settings?.websiteUrl) {
+    lines.push(`🌐 ${db.settings.websiteUrl}`);
   }
 
   res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-  res.send(lines.join('\n'));
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.end(lines.join('\n'));
 });
 
 function generateDailyReportText(data) {
