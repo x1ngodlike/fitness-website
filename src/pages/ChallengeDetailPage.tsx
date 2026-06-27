@@ -159,10 +159,9 @@ export function ChallengeDetailPage() {
       const needed = totalWinnerStakes - totalLoserStakes;
 
       if (needed > 0) {
-        const neededCapped = Math.min(needed, challenge.maxPayout);
-        hostPayout = Math.max(neededCapped, challenge.minStake);
+        hostPayout = Math.min(needed, challenge.maxPayout);
       } else {
-        hostPayout = challenge.minStake;
+        hostPayout = 0;
       }
 
       totalPayout = totalLoserStakes + hostPayout;

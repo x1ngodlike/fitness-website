@@ -17,22 +17,33 @@ ADMIN_PASSWORD="${ADMIN_PASSWORD:-159357}"
 API_TOKEN="${API_TOKEN:-fitness-api-secret-token-2024}"
 
 echo "============================================="
-echo " Step 1/3 — Clean old build artifacts"
+echo " Step 1/4 — Stop & remove old container"
+echo "============================================="
+if docker ps -a --format '{{.Names}}' | grep -q '^fitness-website$'; then
+  echo "Found existing container 'fitness-website', removing..."
+  docker rm -f fitness-website
+  echo "Old container removed."
+else
+  echo "No existing container found, skipping."
+fi
+
+echo
+echo "============================================="
+echo " Step 2/4 — Clean old build artifacts"
 echo "============================================="
 rm -rf dist
 echo "OK"
 
 echo
 echo "============================================="
-echo " Step 2/3 — Docker build"
+echo " Step 3/4 — Docker build"
 echo "============================================="
 docker build -t fitness-website:latest .
 
 echo
 echo "============================================="
-echo " Step 3/3 — Run container (port 5935)"
+echo " Step 4/4 — Run container (port 5935)"
 echo "============================================="
-docker rm -f fitness-website 2>/dev/null || true
 docker run -d \
   --name fitness-website \
   --restart unless-stopped \
