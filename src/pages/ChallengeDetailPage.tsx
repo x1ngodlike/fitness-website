@@ -159,9 +159,10 @@ export function ChallengeDetailPage() {
       const needed = totalWinnerStakes - totalLoserStakes;
 
       if (needed > 0) {
-        hostPayout = Math.min(needed, challenge.maxPayout);
+        const neededCapped = Math.min(needed, challenge.maxPayout);
+        hostPayout = Math.max(neededCapped, challenge.minStake);
       } else {
-        hostPayout = 0;
+        hostPayout = challenge.minStake;
       }
 
       totalPayout = totalLoserStakes + hostPayout;
@@ -399,7 +400,7 @@ export function ChallengeDetailPage() {
                 {challenge.participants.map((participant) => {
                   const isWinner = participant.result === 'win';
                   const amountWon = payout?.winnerAmounts[participant.id] || 0;
-                  const amountLost = participant.result === 'lose' ? Math.max(participant.stake, challenge.minStake) : 0;
+                  const amountLost = participant.result === 'lose' ? participant.stake : 0;
 
                   return (
                     <div
