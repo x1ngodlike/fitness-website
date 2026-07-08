@@ -131,7 +131,7 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
     // 测试环境：不走后端
     if (get().envMode === 'test') {
       // 测试环境也验证密码（本地定义的测试密码）
-      const TEST_ADMIN_PASSWORD = 'admin123';
+      const TEST_ADMIN_PASSWORD = '123456';
       if (password !== TEST_ADMIN_PASSWORD) return false;
       set({ isAdminAuthenticated: true });
       saveMeta({ envMode: get().envMode, isAdminAuthenticated: true, adminPassword: password });

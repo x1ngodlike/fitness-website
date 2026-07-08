@@ -1,4 +1,5 @@
 import { Challenge } from '../types';
+import { PLACEHOLDER_COVERS } from './placeholderImages';
 
 const now = Date.now();
 const day = 86400000;
@@ -112,7 +113,7 @@ const mockEssays = [
   },
 ];
 
-export const mockChallenges: Challenge[] = [
+const RAW_CHALLENGES: Challenge[] = [
   // 1. 进行中的挑战（7/30天）- 底仓200
   {
     id: 'mock-1',
@@ -405,3 +406,9 @@ export const mockChallenges: Challenge[] = [
     createdAt: now - 18 * day,
   },
 ];
+
+// 为没有封面的测试挑战分配本地 SVG 占位图（离线可渲染，避免破图）
+export const mockChallenges: Challenge[] = RAW_CHALLENGES.map((c, i) => ({
+  ...c,
+  coverImage: c.coverImage || PLACEHOLDER_COVERS[i % PLACEHOLDER_COVERS.length],
+}));
