@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
-import { Calendar, Users, Lock, MessageCircle, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { Users, Lock, Calendar, Clock, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { Challenge, Essay } from '../../types';
+import { FALLBACK_COVER } from '../../data/placeholderImages';
+import { Badge, StatusPill, getEffectiveStatus } from '../../components/ui';
 
 interface ChallengeCardProps {
   challenge: Challenge;
@@ -9,161 +11,139 @@ interface ChallengeCardProps {
 }
 
 export function ChallengeCard({ challenge, essays, onEssayClick }: ChallengeCardProps) {
-  const isExpired = () => {
-    const end = new Date(challenge.endDate).getTime();
-    return Date.now() > end;
-  };
-
-  // 有效状态： active → 若 active 且未过期 → 进行中
-  // active 且 已过期 → 待确认
-  // completed → 已结束
-  const effectiveStatus: 'active' | 'pending' | 'completed' =
-    challenge.status === 'active' && isExpired() ? 'pending' : challenge.status;
-
-  const getStatusColor = (status: 'active' | 'pending' | 'completed') => {
-    switch (status) {
-      case 'active':
-        return 'bg-green-500 text-white border-green-500';
-      case 'pending':
-        return 'bg-yellow-500 text-white border-yellow-500';
-      case 'completed':
-        return 'bg-neutral-600 text-white border-neutral-600';
-    }
-  };
-
-  const getStatusText = (status: 'active' | 'pending' | 'completed') => {
-    switch (status) {
-      case 'active':
-        return '进行中';
-      case 'pending':
-        return '待确认';
-      case 'completed':
-        return '已结束';
-    }
-  };
+  const effectiveStatus = getEffectiveStatus(challenge);
 
   const daysLeft = () => {
     const end = new Date(challenge.endDate).getTime();
-    const now = Date.now();
-    const diff = end - now;
-    return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+    return Math.max(0, Math.ceil((end - Date.now()) / (1000 * 60 * 60 * 24)));
   };
 
   const progressPercent = () => {
     const start = new Date(challenge.startDate).getTime();
     const end = new Date(challenge.endDate).getTime();
-    const now = Date.now();
     const totalDays = Math.max(1, (end - start) / (1000 * 60 * 60 * 24));
-    const elapsedDays = Math.max(0, (now - start) / (1000 * 60 * 60 * 24));
-    const percent = (elapsedDays / totalDays) * 100;
-    return Math.min(100, Math.max(0, percent));
+    const elapsedDays = Math.max(0, (Date.now() - start) / (1000 * 60 * 60 * 24));
+    return Math.min(100, Math.max(0, (elapsedDays / totalDays) * 100));
   };
+
+  const latestEssay = essays[0];
 
   return (
     <Link
       to={`/challenge/${challenge.id}`}
-      className="group block bg-neutral-900 rounded-2xl border border-neutral-800 overflow-hidden hover:border-orange-500/30 transition-all duration-300 hover:shadow-xl hover:shadow-orange-500/5"
+      className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--surface)] shadow-[var(--shadow-sm)] transition-all duration-300 hover:-translate-y-1 hover:border-[var(--accent-line)] hover:shadow-[var(--shadow-lg)]"
     >
+      {/* 封面 */}
       <div className="relative aspect-[16/9] overflow-hidden">
         <img
           src={challenge.coverImage}
           alt={challenge.theme}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
           loading="lazy"
           decoding="async"
+          onError={(e) => {
+            e.currentTarget.src = FALLBACK_COVER;
+            e.currentTarget.onerror = null;
+          }}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-neutral-900 via-transparent to-transparent" />
-        <div className="absolute top-3 sm:top-4 right-3 sm:right-4 flex flex-wrap gap-1.5 sm:gap-2 justify-end">
+        {/* 文字可读性遮罩 */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
+        {/* 顶部高光 */}
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/25 to-transparent" />
+        {/* 底部融入卡片本体的渐变 */}
+        <div className="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-[var(--surface)] to-transparent" />
+
+        <div className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full border border-white/15 bg-black/45 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-md">
+          <Users className="h-3.5 w-3.5" />
+          {challenge.participants.length} 人参与
+        </div>
+
+        <div className="absolute right-3 top-3 flex flex-wrap justify-end gap-1.5">
           {challenge.status === 'active' && challenge.isBlocked && (
-            <span className="px-2.5 sm:px-3 py-0.5 sm:py-1 text-xs font-medium rounded-full border bg-red-500/10 text-red-400 border-red-500/20 inline-flex items-center gap-1">
-              <Lock className="w-3 h-3" />
+            <span className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-black/45 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-md">
+              <Lock className="h-3 w-3" />
               封档
             </span>
           )}
-          <span className={`px-2.5 sm:px-3 py-0.5 sm:py-1 text-xs font-medium rounded-full border ${getStatusColor(effectiveStatus)}`}>
-            {getStatusText(effectiveStatus)}
-          </span>
+          <StatusPill status={effectiveStatus} />
         </div>
       </div>
 
-      <div className="p-3 sm:p-4">
-        <h3 className="text-base sm:text-lg font-bold text-white mb-1.5 sm:mb-1 group-hover:text-orange-400 transition-colors line-clamp-2">
+      {/* 内容 */}
+      <div className="flex flex-1 flex-col p-5">
+        <h3 className="mb-1.5 line-clamp-2 text-lg font-bold leading-snug text-[var(--text)] transition-colors group-hover:text-[var(--accent)]">
           {challenge.theme}
         </h3>
 
-        <div className="flex items-center gap-2 text-xs sm:text-sm text-neutral-500 mb-1.5 sm:mb-2">
-          <span className="text-orange-500 font-medium">发起人：{challenge.hostName}</span>
+        <div className="flex items-center gap-1.5 text-sm">
+          <span className="font-semibold text-[var(--accent)]">@{challenge.hostName}</span>
+          <span className="text-[var(--faint)]">发起</span>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm text-neutral-500">
-          <div className="flex items-center gap-1">
-            <Calendar className="w-3 h-3" />
-            <span className="hidden sm:inline">{challenge.startDate} ~ </span>
-            <span>{challenge.endDate}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <Users className="w-3 h-3" />
-            <span>{challenge.participants.length}人</span>
-          </div>
+        <div className="mt-3 flex items-center gap-1.5 text-xs text-[var(--muted)]">
+          <Calendar className="h-3.5 w-3.5 text-[var(--faint)]" />
+          <span>
+            {challenge.startDate} ~ {challenge.endDate}
+          </span>
         </div>
 
-        {challenge.status === 'active' && !isExpired() && (
-          <div className="mt-2.5 sm:mt-3 pt-2.5 sm:pt-3 border-t border-neutral-800">
-            <div className="flex items-center justify-between text-xs sm:text-sm">
-              <span className="text-neutral-500">剩余时间</span>
-              <span className="text-white font-medium">{daysLeft()} 天</span>
+        {challenge.status === 'active' && new Date(challenge.endDate).getTime() > Date.now() && (
+          <div className="mt-4 rounded-xl bg-[var(--surface-2)] p-3.5">
+            <div className="flex items-center justify-between text-xs">
+              <span className="inline-flex items-center gap-1.5 text-[var(--muted)]">
+                <Clock className="h-3.5 w-3.5" />
+                剩余时间
+              </span>
+              <span className="font-semibold text-[var(--text)]">{daysLeft()} 天</span>
             </div>
-            <div className="mt-1.5 h-1 bg-neutral-800 rounded-full overflow-hidden">
+            <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-[var(--line)]">
               <div
-                className="h-full bg-gradient-to-r from-orange-500 to-orange-400 rounded-full transition-all"
+                className="h-full rounded-full bg-gradient-to-r from-[var(--accent)] to-[var(--accent-deep)] transition-all duration-500"
                 style={{ width: `${progressPercent()}%` }}
               />
             </div>
           </div>
         )}
 
+        {/* 最新小作文 — 去掉左侧图标，改为标签置顶 */}
         <div
-          className="mt-2 pt-2 border-t border-neutral-800 cursor-pointer hover:bg-neutral-800/50 -mx-3 sm:-mx-4 px-3 sm:px-4 py-1.5 transition-colors min-h-[56px]"
+          role="button"
+          tabIndex={0}
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
             onEssayClick();
           }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              e.stopPropagation();
+              onEssayClick();
+            }
+          }}
+          className="mt-4 flex cursor-pointer flex-col gap-2 rounded-xl border border-[var(--line)] bg-[var(--surface-2)] p-3.5 text-left transition-colors hover:border-[var(--line-strong)] hover:bg-[var(--hover)]"
         >
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-full bg-orange-500/10 flex items-center justify-center flex-shrink-0">
-              <MessageCircle className="w-3 h-3 text-orange-500" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-xs text-neutral-500 mb-0.5">最新小作文</div>
-              {essays.length > 0 ? (
-                <div className="flex items-center gap-1.5">
-                  <span className={`px-1.5 py-0.25 text-xs font-bold rounded-full flex-shrink-0 ${
-                    essays[0].sentiment === 'bullish'
-                      ? 'bg-red-500/10 text-red-400'  // 利多 - 红色
-                      : 'bg-green-500/10 text-green-400'  // 利空 - 绿色
-                  }`}>
-                    {essays[0].sentiment === 'bullish' ? (
-                      <span className="flex items-center gap-0.5">
-                        <ThumbsUp className="w-2.5 h-2.5" /> 利多
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-0.5">
-                        <ThumbsDown className="w-2.5 h-2.5" /> 利空
-                      </span>
-                    )}
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--faint)]">
+            最新小作文
+          </span>
+          {latestEssay ? (
+            <div className="flex items-center gap-2">
+              <Badge variant={latestEssay.sentiment === 'bullish' ? 'support' : 'oppose'} size="sm">
+                {latestEssay.sentiment === 'bullish' ? (
+                  <span className="flex items-center gap-0.5">
+                    <ThumbsUp className="h-2.5 w-2.5" /> 利多
                   </span>
-                  <p className="text-xs text-white line-clamp-1 flex-1">
-                    {essays[0].content}
-                  </p>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-neutral-500">暂无小作文</span>
-                </div>
-              )}
+                ) : (
+                  <span className="flex items-center gap-0.5">
+                    <ThumbsDown className="h-2.5 w-2.5" /> 利空
+                  </span>
+                )}
+              </Badge>
+              <p className="line-clamp-1 flex-1 text-xs text-[var(--text)]">{latestEssay.content}</p>
             </div>
-          </div>
+          ) : (
+            <span className="text-xs text-[var(--faint)]">暂无小作文</span>
+          )}
         </div>
       </div>
     </Link>
