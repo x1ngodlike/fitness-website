@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -66,19 +66,122 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #0D0D0D;
+  background: var(--bg);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #333;
+  background: var(--line-strong);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #555;
+  background: var(--muted);
 }
 
 input[type="date"]::-webkit-calendar-picker-indicator {
   filter: invert(1);
   cursor: pointer;
 }
+
+/* —— 管理后台设计系统 token —— */
+:root {
+  --bg: oklch(0.15 0.004 60);
+  --surface: oklch(0.185 0.005 60);
+  --surface-2: oklch(0.215 0.006 60);
+  --line: rgba(255, 255, 255, 0.08);
+  --line-strong: rgba(255, 255, 255, 0.14);
+  --text: oklch(0.96 0.004 60);
+  --muted: oklch(0.72 0.012 60);
+  --faint: oklch(0.56 0.012 60);
+  --accent: oklch(0.72 0.16 45);
+  --accent-soft: oklch(0.72 0.16 45 / 0.14);
+  --accent-line: oklch(0.72 0.16 45 / 0.32);
+  --ok: oklch(0.74 0.16 150);
+  --ok-soft: oklch(0.74 0.16 150 / 0.14);
+  --warn: oklch(0.82 0.14 80);
+  --warn-soft: oklch(0.82 0.14 80 / 0.14);
+  --bad: oklch(0.64 0.19 25);
+  --bad-soft: oklch(0.64 0.19 25 / 0.14);
+  --bg-80: oklch(0.15 0.004 60 / 0.8);
+  --bg-90: oklch(0.15 0.004 60 / 0.9);
+  --surface-95: oklch(0.185 0.005 60 / 0.95);
+  --side-support: var(--up-soft);          /* 支持 / 看多 / 利多 = 红 */
+  --side-support-text: var(--up);
+  --side-support-line: var(--up-line);
+  --side-oppose: var(--down-soft);          /* 反对 / 看空 / 利空 = 绿 */
+  --side-oppose-text: var(--down);
+  --side-oppose-line: var(--down-line);
+
+  /* —— 统一规范扩展令牌 —— */
+  --accent-deep: oklch(0.6 0.16 40);
+  --accent-shadow: oklch(0.72 0.16 45 / 0.35);
+  --hover: oklch(1 0 0 / 0.06);
+  --input-bg: oklch(1 0 0 / 0.04);
+  --ok-line: oklch(0.74 0.16 150 / 0.3);
+  --warn-line: oklch(0.82 0.14 80 / 0.3);
+  --bad-line: oklch(0.64 0.19 25 / 0.3);
+  --z-modal: 50;
+  --z-overlay: 100;
+  --z-toast: 60;
+
+  /* 圆角尺度（四级） */
+  --r-sm: 0.5rem;   /* 8px  — 紧凑控件 / 图标按钮 / Tab 分段 */
+  --r-md: 0.75rem;  /* 12px — 主/次按钮 / 输入框 */
+  --r-lg: 1rem;     /* 16px — 卡片 / 面板 / 弹窗 */
+  --r-xl: 1.5rem;   /* 24px — 大块 / 移动端底部抽屉 */
+
+  /* —— 辅助色令牌（替换散落的 oklch 硬编码）—— */
+  --info: oklch(0.72 0.14 220);
+  --info-soft: oklch(0.72 0.14 220 / 0.16);
+  --info-line: oklch(0.72 0.14 220 / 0.34);
+  --purple: oklch(0.7 0.15 300);
+  --purple-soft: oklch(0.7 0.15 300 / 0.16);
+  --purple-line: oklch(0.7 0.15 300 / 0.34);
+
+  /* —— 涨跌 / 利多利空令牌（红涨绿跌，A 股惯例）—— */
+  --up: oklch(0.64 0.19 25);          /* 涨 / 利多 / 盈利 = 红 */
+  --up-soft: oklch(0.64 0.19 25 / 0.14);
+  --up-line: oklch(0.64 0.19 25 / 0.3);
+  --down: oklch(0.74 0.16 150);        /* 跌 / 利空 / 亏损 = 绿 */
+  --down-soft: oklch(0.74 0.16 150 / 0.14);
+  --down-line: oklch(0.74 0.16 150 / 0.3);
+
+  /* —— 统一阴影 / 高程令牌 —— */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.28);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.34);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.4);
+  --shadow-accent: 0 6px 20px var(--accent-shadow);
+}
+
+.font-display {
+  font-family: 'Space Grotesk', 'Inter', -apple-system, sans-serif;
+}
+
+/* 全站标题统一使用展示字体 */
+h1, h2, h3 {
+  font-family: 'Space Grotesk', 'Inter', -apple-system, sans-serif;
+}
+
+/* 统一焦点环（无障碍） */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 细腻滚动条（后台列表） */
+.scroll-slim::-webkit-scrollbar { width: 6px; height: 6px; }
+.scroll-slim::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 999px; }
+.scroll-slim::-webkit-scrollbar-track { background: transparent; }

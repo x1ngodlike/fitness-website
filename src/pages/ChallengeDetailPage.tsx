@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Calendar, Users, Trophy, X, DollarSign, User, Lock, Flame } from 'lucide-react';
+import { ArrowLeft, Calendar, Users, Trophy, X, User, Lock, Flame, Info } from 'lucide-react';
 import { useChallengeStore } from '../store/challengeStore';
 import { Challenge } from '../types';
+import { FALLBACK_COVER } from '../data/placeholderImages';
+import { Button, Input, Badge, Modal, StatusPill, getEffectiveStatus } from '../components/ui';
 
 export function ChallengeDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -21,12 +23,12 @@ export function ChallengeDetailPage() {
 
   if (!challenge) {
     return (
-      <div className="min-h-screen bg-neutral-950 flex items-center justify-center">
+      <div className="min-h-screen bg-[var(--bg)] flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-white mb-2">挑战不存在</h2>
-          <button onClick={() => navigate('/')} className="text-orange-500 hover:underline">
+          <h2 className="text-2xl font-bold text-[var(--text)] mb-2">挑战不存在</h2>
+          <Button variant="primary" onClick={() => navigate('/')}>
             返回首页
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -39,6 +41,7 @@ export function ChallengeDetailPage() {
   const MIN_PARTICIPANT_STAKE = 100;
 
   const myStake = parseInt(myStakeInput, 10) || 0;
+  const canJoin = !!participantName && myStake >= MIN_PARTICIPANT_STAKE && !!selectedSide;
 
   const handleJoin = async () => {
     if (!participantName || myStake < MIN_PARTICIPANT_STAKE || !selectedSide) {
@@ -46,19 +49,19 @@ export function ChallengeDetailPage() {
       return;
     }
     if (joining) return;
-    
+
     setJoining(true);
-    
+
     const savedName = participantName;
     const savedStake = myStakeInput;
     const savedSide = selectedSide;
-    
+
     setShowJoinModal(false);
     setParticipantName('');
     setMyStakeInput('100');
     setSelectedSide(null);
     setJoinError('');
-    
+
     setTimeout(async () => {
       try {
         const ok = await joinChallenge(challenge.id, savedName, myStake, savedSide);
@@ -78,59 +81,34 @@ export function ChallengeDetailPage() {
     }, 0);
   };
 
-  const getStatusColor = (status: Challenge['status']) => {
-    switch (status) {
-      case 'active':
-        return 'bg-green-500/10 text-green-400 border-green-500/20';
-      case 'pending':
-        return 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20';
-      case 'completed':
-        return 'bg-neutral-500/10 text-neutral-400 border-neutral-500/20';
-    }
-  };
-
-  const getStatusText = (status: Challenge['status']) => {
-    switch (status) {
-      case 'active':
-        return '进行中';
-      case 'pending':
-        return '待确认';
-      case 'completed':
-        return '已结束';
-    }
-  };
-
-  const getResultBadge = (result: string) => {
-    switch (result) {
-      case 'win':
-        return 'bg-green-500/10 text-green-400 border-green-500/20';
-      case 'lose':
-        return 'bg-red-500/10 text-red-400 border-red-500/20';
-      default:
-        return 'bg-neutral-500/10 text-neutral-400 border-neutral-500/20';
-    }
-  };
+  const effectiveStatus = getEffectiveStatus(challenge);
 
   const isExpired = () => {
     const endDate = new Date(challenge.endDate).getTime();
     return Date.now() > endDate;
   };
 
-  const effectiveStatus: Challenge['status'] =
-    challenge.status === 'active' && isExpired() ? 'pending' : challenge.status;
-
   const totalCount = challenge.participants.length;
-  const supportCount = challenge.participants.filter(p => p.side === 'support').length;
-  const opposeCount = challenge.participants.filter(p => p.side === 'oppose').length;
-  const supportStakes = challenge.participants.filter(p => p.side === 'support').reduce((sum, p) => sum + p.stake, 0);
-  const opposeStakes = challenge.participants.filter(p => p.side === 'oppose').reduce((sum, p) => sum + p.stake, 0);
+  const supportCount = challenge.participants.filter((p) => p.side === 'support').length;
+  const opposeCount = challenge.participants.filter((p) => p.side === 'oppose').length;
+  const supportStakes = challenge.participants
+    .filter((p) => p.side === 'support')
+    .reduce((sum, p) => sum + p.stake, 0);
+  const opposeStakes = challenge.participants
+    .filter((p) => p.side === 'oppose')
+    .reduce((sum, p) => sum + p.stake, 0);
+
+  const totalStakes = supportStakes + opposeStakes;
+  const hasStakes = totalStakes > 0;
+  const supportPct = hasStakes ? Math.round((supportStakes / totalStakes) * 100) : 0;
+  const opposePct = hasStakes ? 100 - supportPct : 0;
 
   // 奖池计算
   const calculatePayout = () => {
     if (challenge.status !== 'completed') return null;
 
-    const winners = challenge.participants.filter(p => p.result === 'win');
-    const losers = challenge.participants.filter(p => p.result === 'lose');
+    const winners = challenge.participants.filter((p) => p.result === 'win');
+    const losers = challenge.participants.filter((p) => p.result === 'lose');
     const winnerCount = winners.length;
 
     if (winnerCount === 0) {
@@ -147,7 +125,7 @@ export function ChallengeDetailPage() {
     const totalWinnerStakes = winners.reduce((sum, p) => sum + p.stake, 0);
     const totalLoserStakes = losers.reduce((sum, p) => sum + p.stake, 0);
 
-    const hostSuccess = winners.some(p => p.side === 'support');
+    const hostSuccess = winners.some((p) => p.side === 'support');
 
     let totalPayout = 0;
     let hostPayout = 0;
@@ -204,196 +182,247 @@ export function ChallengeDetailPage() {
   };
 
   return (
-    <div className="min-h-screen bg-neutral-950">
-      <div className="max-w-3xl mx-auto px-6 pt-24 pb-16">
-        <button
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-neutral-400 hover:text-white mb-8 transition-colors"
-        >
+    <div className="min-h-screen bg-[var(--bg)]">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 pt-20 pb-16">
+        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="mb-6 -ml-2">
           <ArrowLeft className="w-5 h-5" />
           返回
-        </button>
+        </Button>
 
-        <div className="bg-neutral-900 rounded-2xl border border-neutral-800 overflow-hidden">
-          <div className="relative aspect-[4/1] overflow-hidden">
+        <div className="overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--surface)] shadow-[var(--shadow-md)]">
+          {/* 英雄封面 — 与首页卡片 / 小作文弹窗同源 */}
+          <div className="relative aspect-[16/9] overflow-hidden">
             <img
               src={challenge.coverImage}
               alt={challenge.theme}
-              className="w-full h-full object-cover"
+              className="h-full w-full object-cover"
               loading="eager"
               decoding="async"
+              onError={(e) => {
+                e.currentTarget.src = FALLBACK_COVER;
+                e.currentTarget.onerror = null;
+              }}
             />
-            <div className="absolute top-4 right-4 flex flex-wrap gap-2 justify-end">
-              <span className={`px-3 py-1 text-sm font-medium rounded-full border ${getStatusColor(effectiveStatus)} inline-flex items-center gap-1`}>
-                {getStatusText(effectiveStatus)}
-              </span>
+            <div className="absolute inset-0 bg-gradient-to-t from-[var(--surface)] via-black/25 to-black/15" />
+            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/25 to-transparent" />
+
+            <div className="absolute right-3 top-3 flex flex-wrap justify-end gap-1.5">
               {challenge.status === 'active' && challenge.isBlocked && (
-                <span className="px-3 py-1 text-sm font-medium rounded-full border bg-red-500/10 text-red-400 border-red-500/20 inline-flex items-center gap-1">
-                  <Lock className="w-3 h-3" />
-                  已封档
+                <span className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-black/45 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-md">
+                  <Lock className="h-3 w-3" />
+                  封档
                 </span>
               )}
+              <StatusPill status={effectiveStatus} />
             </div>
           </div>
 
-          <div className="p-6 border-b border-neutral-800">
-            <h1 className="text-xl font-bold text-white mb-2">{challenge.theme}</h1>
-            <p className="text-neutral-400 text-sm mb-2">{challenge.goal}</p>
-
-            <div className="flex items-center gap-2 text-orange-500 font-medium text-sm mb-2">
-              <span>发起人：{challenge.hostName}</span>
-            </div>
-
-            <div className="flex items-center gap-4 text-neutral-500 text-sm">
-              <div className="flex items-center gap-1.5">
-                <Calendar className="w-4 h-4" />
-                <span>{challenge.startDate} ~ {challenge.endDate}</span>
+          {/* 内容区 — 全新语义层级 */}
+          <div className="space-y-7 p-5 sm:p-6">
+            {/* 标题区 · 挑战目标 */}
+            <div>
+              <h1 className="font-display text-2xl font-bold leading-snug text-[var(--text)]">
+                {challenge.theme}
+              </h1>
+              <p className="mt-1.5 text-xs text-[var(--accent)]">由 @{challenge.hostName} 发起</p>
+              <p className="mt-3 text-[15px] leading-relaxed text-[var(--text)]">{challenge.goal}</p>
+              <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-[var(--muted)]">
+                <span className="inline-flex items-center gap-1.5">
+                  <Calendar className="h-4 w-4 text-[var(--faint)]" />
+                  {challenge.startDate} ~ {challenge.endDate}
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <Users className="h-4 w-4 text-[var(--faint)]" />
+                  {totalCount} 人参与
+                </span>
               </div>
-              <div className="flex items-center gap-1.5">
-                <Users className="w-4 h-4" />
-                <span>{challenge.participants.length}人</span>
-              </div>
-            </div>
 
-            {challenge.status === 'active' && !isExpired() && (
-              <div className="mt-4 p-3 bg-neutral-800/50 rounded-xl">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-neutral-400">剩余时间</span>
-                  <span className="text-white font-bold">
+              {challenge.status === 'active' && !isExpired() && (
+                <div className="mt-4 flex items-center justify-between rounded-xl border border-[var(--line)] bg-[var(--surface-2)] px-4 py-3">
+                  <span className="inline-flex items-center gap-1.5 text-sm text-[var(--muted)]">
+                    <Calendar className="h-4 w-4" />
+                    剩余时间
+                  </span>
+                  <span className="text-sm font-bold text-[var(--text)]">
                     {Math.max(0, Math.ceil((new Date(challenge.endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))} 天
                   </span>
                 </div>
-              </div>
-            )}
+              )}
 
-            {effectiveStatus === 'pending' && (
-              <div className="mt-4 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-xl">
-                <p className="text-yellow-400 text-sm font-medium">⏳ 挑战时间已到，等待确认结果...</p>
-              </div>
-            )}
-
-            {/* 资金池统计 */}
-            <div className="mt-4">
-              <h3 className="text-base font-bold text-white mb-3">资金池统计</h3>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="p-3 bg-neutral-800/50 rounded-xl">
-                  <p className="text-sm text-neutral-500 mb-2">挑战者资金</p>
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-neutral-400 text-sm">最高赔付</span>
-                      <span className="text-white font-bold">{challenge.maxPayout}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-neutral-400 text-sm">最低赔付</span>
-                      <span className="text-white font-bold">{challenge.minStake}</span>
-                    </div>
-                  </div>
+              {effectiveStatus === 'pending' && (
+                <div className="mt-4 rounded-xl border border-[var(--warn-line)] bg-[var(--warn-soft)] px-4 py-3 text-sm font-medium text-[var(--warn)]">
+                  ⏳ 挑战时间已到，等待确认结果...
                 </div>
-                <div className="p-3 bg-neutral-800/50 rounded-xl">
-                  <p className="text-sm text-neutral-500 mb-2">参与者资金</p>
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-green-400 text-sm">{supportLabel}</span>
-                      <span className="text-white font-bold">{supportStakes}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-red-400 text-sm">{opposeLabel}</span>
-                      <span className="text-white font-bold">{opposeStakes}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              )}
             </div>
+
+            {/* 挑战者保障 */}
+            <section>
+              <h2 className="mb-4 flex items-center gap-2 text-base font-bold text-[var(--text)]">
+                <span className="h-4 w-1 rounded-full bg-[var(--accent)]" />
+                挑战者保障
+              </h2>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl bg-[var(--surface-2)] p-4">
+                  <p className="mb-2 text-xs text-[var(--faint)]">挑战的最高赔付</p>
+                  <p className="text-xl font-bold text-[var(--text)]">{challenge.maxPayout}</p>
+                </div>
+                <div className="rounded-xl bg-[var(--surface-2)] p-4">
+                  <p className="mb-2 text-xs text-[var(--faint)]">挑战的最低赔付</p>
+                  <p className="text-xl font-bold text-[var(--text)]">{challenge.minStake}</p>
+                </div>
+              </div>
+              <div className="mt-4 rounded-xl border border-[var(--info-line)] bg-[var(--info-soft)] p-4">
+                <p className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-[var(--info)]">
+                  <Info className="h-4 w-4" />
+                  挑战者规则
+                </p>
+                <div className="space-y-2 text-xs leading-relaxed text-[var(--muted)]">
+                  <p>
+                    <span className="font-semibold text-[var(--text)]">挑战成功：</span>
+                    白粉与挑战者按比例瓜分黑粉押金池（挑战者享有最低 200 份额保底）。
+                  </p>
+                  <p>
+                    <span className="font-semibold text-[var(--text)]">挑战失败：</span>
+                    黑粉按比例瓜分白粉押金池。
+                  </p>
+                  <p className="pl-3">
+                    · 若白粉池 ≤ 黑粉池：挑战者补齐差额（上限为最高赔付额）；
+                  </p>
+                  <p className="pl-3">
+                    · 若白粉池 ≥ 黑粉池：挑战者向白粉池补充最低赔付额。
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            {/* 多空对决 — 核心张力可视化 */}
+            <section>
+              <h2 className="mb-4 flex items-center gap-2 text-base font-bold text-[var(--text)]">
+                <span className="h-4 w-1 rounded-full bg-[var(--up)]" />
+                多空对决
+              </h2>
+
+              {hasStakes ? (
+                <>
+                  <div className="flex h-3 w-full overflow-hidden rounded-full bg-[var(--surface-2)]">
+                    <div className="h-full bg-[var(--up)] transition-all duration-500" style={{ width: `${supportPct}%` }} />
+                    <div className="h-full bg-[var(--down)] transition-all duration-500" style={{ width: `${opposePct}%` }} />
+                  </div>
+                  <div className="mt-2 flex justify-between text-xs font-medium text-[var(--muted)]">
+                    <span className="text-[var(--up)]">{supportLabel} {supportPct}%</span>
+                    <span className="text-[var(--down)]">{opposeLabel} {opposePct}%</span>
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-2 gap-3">
+                    <div className="rounded-xl border border-[var(--up-line)] bg-[var(--up-soft)] p-4">
+                      <div className="mb-2 flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full bg-[var(--up)]" />
+                        <span className="text-sm font-semibold text-[var(--up)]">{supportLabel}</span>
+                      </div>
+                      <p className="text-2xl font-bold leading-none text-[var(--text)]">{supportStakes}</p>
+                      <p className="mt-1 text-xs text-[var(--faint)]">押注额 · {supportCount} 人</p>
+                    </div>
+                    <div className="rounded-xl border border-[var(--down-line)] bg-[var(--down-soft)] p-4">
+                      <div className="mb-2 flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full bg-[var(--down)]" />
+                        <span className="text-sm font-semibold text-[var(--down)]">{opposeLabel}</span>
+                      </div>
+                      <p className="text-2xl font-bold leading-none text-[var(--text)]">{opposeStakes}</p>
+                      <p className="mt-1 text-xs text-[var(--faint)]">押注额 · {opposeCount} 人</p>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="rounded-xl border border-dashed border-[var(--line-strong)] bg-[var(--surface-2)] px-4 py-8 text-center text-sm text-[var(--faint)]">
+                  还没有人押注，成为第一个下注的人吧
+                </div>
+              )}
+            </section>
+
+            {/* 结算信息（红涨绿跌） */}
+            {payout && (
+              <section>
+                <h2 className="mb-4 flex items-center gap-2 text-base font-bold text-[var(--text)]">
+                  <span className="h-4 w-1 rounded-full bg-[var(--accent)]" />
+                  🏆 奖金结算
+                </h2>
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                  <div className="rounded-xl bg-[var(--surface-2)] p-3">
+                    <p className="mb-1 text-xs text-[var(--faint)]">挑战者</p>
+                    <p className={`text-lg font-bold ${payout.hostSuccess ? 'text-[var(--up)]' : 'text-[var(--down)]'}`}>
+                      {payout.hostSuccess ? '✓ 成功' : '✗ 失败'}
+                    </p>
+                  </div>
+                  <div className="rounded-xl bg-[var(--surface-2)] p-3">
+                    <p className="mb-1 text-xs text-[var(--faint)]">赢家人数</p>
+                    <p className="text-lg font-bold text-[var(--text)]">{payout.winnerCount}人</p>
+                  </div>
+                  <div className="rounded-xl bg-[var(--surface-2)] p-3">
+                    <p className="mb-1 text-xs text-[var(--faint)]">奖池总额</p>
+                    <p className="text-lg font-bold text-[var(--text)]">{payout.totalPayout}</p>
+                  </div>
+                  <div className="rounded-xl bg-[var(--surface-2)] p-3">
+                    <p className="mb-1 text-xs text-[var(--faint)]">挑战者付出</p>
+                    <p className={`text-lg font-bold ${payout.hostPayout > 0 ? 'text-[var(--down)]' : 'text-[var(--up)]'}`}>
+                      {payout.hostPayout}
+                    </p>
+                  </div>
+                </div>
+              </section>
+            )}
           </div>
 
-          {/* 结算信息 */}
-          {payout && (
-            <div className="p-5 bg-gradient-to-r from-orange-500/10 to-red-500/10 border-b border-neutral-800">
-              <h3 className="text-base font-bold text-white mb-3">🏆 奖金结算</h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <div className="bg-neutral-800/50 rounded-xl p-3">
-                  <p className="text-xs text-neutral-500 mb-1">挑战者</p>
-                  <p className={`text-lg font-bold ${payout.hostSuccess ? 'text-green-400' : 'text-red-400'}`}>
-                    {payout.hostSuccess ? '✓ 成功' : '✗ 失败'}
-                  </p>
-                </div>
-                <div className="bg-neutral-800/50 rounded-xl p-3">
-                  <p className="text-xs text-neutral-500 mb-1">赢家人数</p>
-                  <p className="text-lg font-bold text-green-400">{payout.winnerCount}人</p>
-                </div>
-                <div className="bg-neutral-800/50 rounded-xl p-3">
-                  <p className="text-xs text-neutral-500 mb-1">奖池总额</p>
-                  <p className="text-lg font-bold text-white">{payout.totalPayout}</p>
-                </div>
-                <div className="bg-neutral-800/50 rounded-xl p-3">
-                  <p className="text-xs text-neutral-500 mb-1">挑战者付出</p>
-                  <p className={`text-lg font-bold ${payout.hostPayout > 0 ? 'text-orange-400' : 'text-green-400'}`}>
-                    {payout.hostPayout}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* 参与者列表 */}
-          <div className="p-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-                <h2 className="text-lg font-bold text-white flex items-center gap-2 flex-wrap">
-                  <Users className="w-4 h-4 text-orange-500 flex-shrink-0" />
+          <div className="border-t border-[var(--line)] p-5 sm:p-6">
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <h2 className="flex items-center gap-2 text-lg font-bold text-[var(--text)]">
+                <span className="h-5 w-1 rounded-full bg-[var(--accent)]" />
+                <span className="flex items-center gap-2">
                   参与者列表
                   {totalCount > 0 && (
-                    <span className="text-sm font-normal text-neutral-500">
-                      {supportLabel}{supportCount} {opposeLabel}{opposeCount}
+                    <span className="text-sm font-normal text-[var(--faint)]">
+                      {supportLabel}
+                      {supportCount} {opposeLabel}
+                      {opposeCount}
                     </span>
                   )}
-                </h2>
-                <div className="flex items-center gap-2">
-                  {challenge.status === 'active' && !challenge.isBlocked && !isExpired() && (
-                    <button
-                      onClick={() => {
-                        setShowJoinModal(true);
-                        setJoinError('');
-                      }}
-                      className="flex-1 sm:flex-none px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-all"
-                    >
-                      立即参与
-                    </button>
-                  )}
-                  {challenge.isBlocked && challenge.status === 'active' && (
-                    <div className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 text-sm text-red-400 bg-red-500/10 rounded-lg border border-red-500/20">
-                      <Lock className="w-4 h-4" />
-                      <span>已封档，暂停参与</span>
-                    </div>
-                  )}
-                </div>
+                </span>
+              </h2>
+              <div className="flex items-center gap-2">
+                {challenge.status === 'active' && !challenge.isBlocked && !isExpired() && (
+                  <Button variant="primary" onClick={() => { setShowJoinModal(true); setJoinError(''); }}>
+                    立即参与
+                  </Button>
+                )}
+                {challenge.isBlocked && challenge.status === 'active' && (
+                  <div className="flex items-center gap-2 rounded-xl border border-[var(--bad-line)] bg-[var(--bad-soft)] px-4 py-2 text-sm text-[var(--bad)]">
+                    <Lock className="h-4 w-4" />
+                    <span>已封档，暂停参与</span>
+                  </div>
+                )}
               </div>
+            </div>
 
-            {/* 管理员设置挑战结果 */}
             {isAdminAuthenticated && effectiveStatus === 'pending' && (
-              <div className="mb-4 p-3 bg-orange-500/10 border border-orange-500/20 rounded-xl">
-                <h3 className="text-orange-400 text-sm font-medium mb-2">管理员：确认挑战结果</h3>
-                <p className="text-neutral-400 text-xs mb-2">挑战时间已到，请确认挑战者是否成功：</p>
+              <div className="mb-4 rounded-xl border border-[var(--accent-line)] bg-[var(--accent-soft)] p-3">
+                <h3 className="mb-2 text-sm font-medium text-[var(--accent)]">管理员：确认挑战结果</h3>
+                <p className="mb-2 text-xs text-[var(--muted)]">挑战时间已到，请确认挑战者是否成功：</p>
                 <div className="flex gap-2">
-                  <button
-                    onClick={async () => { await setChallengeResult(challenge.id, 'success'); }}
-                    className="px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-sm rounded-lg font-medium transition-all"
-                  >
+                  <Button variant="success" size="sm" onClick={async () => { await setChallengeResult(challenge.id, 'success'); }}>
                     ✓ 成功
-                  </button>
-                  <button
-                    onClick={async () => { await setChallengeResult(challenge.id, 'failed'); }}
-                    className="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white text-sm rounded-lg font-medium transition-all"
-                  >
+                  </Button>
+                  <Button variant="danger" size="sm" onClick={async () => { await setChallengeResult(challenge.id, 'failed'); }}>
                     ✗ 失败
-                  </button>
+                  </Button>
                 </div>
               </div>
             )}
 
             {challenge.participants.length === 0 ? (
-              <div className="text-center py-6">
-                <span className="text-3xl mb-2 block">🏋️</span>
-                <p className="text-neutral-500 text-sm">还没有人参与，成为第一个参与者吧！</p>
+              <div className="py-6 text-center">
+                <span className="mb-2 block text-3xl">🏋️</span>
+                <p className="text-sm text-[var(--faint)]">还没有人参与，成为第一个参与者吧！</p>
               </div>
             ) : (
               <div className="space-y-2">
@@ -405,22 +434,29 @@ export function ChallengeDetailPage() {
                   return (
                     <div
                       key={participant.id}
-                      className="flex items-center justify-between p-3 bg-neutral-800/50 rounded-xl"
+                      className="flex items-center justify-between rounded-xl bg-[var(--surface-2)] p-3"
                     >
                       <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[var(--accent)] to-[var(--accent-deep)] font-bold text-sm text-white">
                           {participant.participantName.charAt(0)}
                         </div>
                         <div>
-                          <p className="text-white text-sm font-medium">{participant.participantName}</p>
-                          <p className="text-xs text-neutral-500">
-                            {getParticipantJoinTime(participant)}
-                          </p>
+                          <p className="text-sm font-medium text-[var(--text)]">{participant.participantName}</p>
+                          <p className="text-xs text-[var(--faint)]">{getParticipantJoinTime(participant)}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
                         {challenge.status === 'completed' && (
-                          <span className={`px-3 py-1 text-xs font-bold rounded-lg border ${getResultBadge(participant.result)}`}>
+                          <Badge
+                            variant={
+                              participant.result === 'win'
+                                ? 'success'
+                                : participant.result === 'lose'
+                                ? 'danger'
+                                : 'neutral'
+                            }
+                            size="sm"
+                          >
                             {isWinner ? (
                               <span className="flex items-center gap-1">
                                 <Trophy className="w-3 h-3" /> +{amountWon}
@@ -432,18 +468,14 @@ export function ChallengeDetailPage() {
                             ) : (
                               '待定'
                             )}
-                          </span>
+                          </Badge>
                         )}
-                        <span className={`px-3 py-1 text-xs font-bold rounded-lg border ${
-                          participant.side === 'support'
-                            ? 'bg-green-500/10 text-green-400 border-green-500/20'
-                            : 'bg-red-500/10 text-red-400 border-red-500/20'
-                        }`}>
+                        <Badge variant={participant.side === 'support' ? 'support' : 'oppose'} size="sm">
                           {participant.side === 'support' ? supportLabel : opposeLabel}
-                        </span>
-                        <span className="px-3 py-1 text-xs font-bold text-orange-400 bg-orange-500/10 rounded-lg border border-orange-500/20">
+                        </Badge>
+                        <Badge variant="accent" size="sm">
                           {participant.stake}元
-                        </span>
+                        </Badge>
                       </div>
                     </div>
                   );
@@ -455,127 +487,105 @@ export function ChallengeDetailPage() {
       </div>
 
       {/* 参与挑战模态框 */}
-      {showJoinModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 sm:p-6">
-          <div className="bg-neutral-900 rounded-2xl border border-neutral-800 p-6 w-full sm:max-w-md max-h-[90vh] overflow-y-auto">
-            <h3 className="text-xl font-bold text-white mb-4">参与挑战</h3>
-            <p className="text-neutral-400 mb-6">
-              填写信息并选择你的态度
-            </p>
+      <Modal
+        open={showJoinModal}
+        onClose={() => { setShowJoinModal(false); setJoinError(''); }}
+        title="参与挑战"
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              fullWidth
+              onClick={() => { setShowJoinModal(false); setJoinError(''); }}
+            >
+              取消
+            </Button>
+            <Button variant="primary" fullWidth disabled={!canJoin} onClick={handleJoin}>
+              确认参与
+            </Button>
+          </>
+        }
+      >
+        <p className="mb-6 text-sm text-[var(--muted)]">填写信息并选择你的态度</p>
 
-            {joinError && (
-              <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">
-                {joinError}
-              </div>
-            )}
+        {joinError && (
+          <div className="mb-4 rounded-xl border border-[var(--bad-line)] bg-[var(--bad-soft)] p-3 text-sm text-[var(--bad)]">
+            {joinError}
+          </div>
+        )}
 
-            <div className="mb-4">
-              <label className="block text-white font-medium mb-3">
-                <User className="w-4 h-4 inline mr-2 text-orange-500" />
-                你的姓名
-              </label>
-              <input
-                type="text"
-                placeholder="输入你的姓名..."
-                value={participantName}
-                onChange={(e) => setParticipantName(e.target.value)}
-                className="w-full px-4 py-3 bg-neutral-800 border border-neutral-700 rounded-xl text-white placeholder-neutral-500 focus:outline-none focus:border-orange-500"
-              />
-            </div>
+        <div className="mb-4">
+          <label className="mb-3 block font-medium text-[var(--text)]">
+            <User className="mr-2 inline h-4 w-4 text-[var(--accent)]" />
+            你的姓名
+          </label>
+          <Input
+            type="text"
+            placeholder="输入你的姓名..."
+            value={participantName}
+            onChange={(e) => setParticipantName(e.target.value)}
+          />
+        </div>
 
-            <div className="mb-6">
-              <label className="block text-white font-medium mb-3">
-                <Flame className="w-4 h-4 inline mr-2 text-orange-500" />
-                你的押金 <span className="text-neutral-500 text-sm">(最低{MIN_PARTICIPANT_STAKE})</span>
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {[100, 200, 500, 1000, 2000].filter((v,i,a) => v >= MIN_PARTICIPANT_STAKE && a.indexOf(v) === i).map((amount) => (
-                  <button
-                    key={amount}
-                    type="button"
-                    onClick={() => setMyStakeInput(String(amount))}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                      myStakeInput === String(amount)
-                        ? 'bg-orange-500 text-white'
-                        : 'bg-neutral-800 text-neutral-400 hover:bg-neutral-700'
-                    }`}
-                  >
-                    {amount}
-                  </button>
-                ))}
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  placeholder="自定义"
-                  value={myStakeInput}
-                  onChange={(e) => setMyStakeInput(e.target.value)}
-                  className="flex-1 min-w-24 px-4 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white text-sm focus:outline-none focus:border-orange-500"
-                />
-              </div>
-            </div>
-
-            {/* 态度选择 */}
-            <div className="mb-6">
-              <label className="block text-white font-medium mb-3">选择你的态度</label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  onClick={() => setSelectedSide('support')}
-                  className={`p-4 rounded-xl border-2 border-solid transition-all ${
-                    selectedSide === 'support'
-                      ? 'border-green-500 bg-green-500/10 ring-2 ring-green-500/30'
-                      : 'border-neutral-700 bg-neutral-800 hover:border-neutral-600'
-                  }`}
+        <div className="mb-6">
+          <label className="mb-3 block font-medium text-[var(--text)]">
+            <Flame className="mr-2 inline h-4 w-4 text-[var(--accent)]" />
+            你的押金 <span className="text-sm text-[var(--faint)]">(最低{MIN_PARTICIPANT_STAKE})</span>
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {[100, 200, 500, 1000, 2000]
+              .filter((v, i, a) => v >= MIN_PARTICIPANT_STAKE && a.indexOf(v) === i)
+              .map((amount) => (
+                <Button
+                  key={amount}
+                  type="button"
+                  variant={myStakeInput === String(amount) ? 'primary' : 'secondary'}
+                  size="sm"
+                  onClick={() => setMyStakeInput(String(amount))}
                 >
-                  <span className={`block text-base font-bold mb-1 ${selectedSide === 'support' ? 'text-green-400' : 'text-neutral-400'}`}>
-                    {supportLabel}
-                  </span>
-                  <span className="block text-xs text-neutral-500">
-                    认为 {challenge.hostName} 能成功
-                  </span>
-                </button>
-                <button
-                  onClick={() => setSelectedSide('oppose')}
-                  className={`p-4 rounded-xl border-2 border-solid transition-all ${
-                    selectedSide === 'oppose'
-                      ? 'border-red-500 bg-red-500/10 ring-2 ring-red-500/30'
-                      : 'border-neutral-700 bg-neutral-800 hover:border-neutral-600'
-                  }`}
-                >
-                  <span className={`block text-base font-bold mb-1 ${selectedSide === 'oppose' ? 'text-red-400' : 'text-neutral-400'}`}>
-                    {opposeLabel}
-                  </span>
-                  <span className="block text-xs text-neutral-500">
-                    认为 {challenge.hostName} 会失败
-                  </span>
-                </button>
-              </div>
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  setShowJoinModal(false);
-                  setJoinError('');
-                }}
-                className="flex-1 py-3 bg-neutral-800 hover:bg-neutral-700 text-white rounded-xl font-medium transition-colors"
-              >
-                取消
-              </button>
-              <button
-                onClick={handleJoin}
-                disabled={!participantName || myStake < MIN_PARTICIPANT_STAKE || !selectedSide}
-                className={`flex-1 py-3 rounded-xl font-bold transition-all ${
-                  participantName && myStake >= MIN_PARTICIPANT_STAKE && selectedSide
-                    ? 'bg-orange-500 hover:bg-orange-600 text-white'
-                    : 'bg-neutral-700 text-neutral-400 cursor-not-allowed'
-                }`}
-              >
-                确认参与
-              </button>
-            </div>
+                  {amount}
+                </Button>
+              ))}
+            <Input
+              type="text"
+              inputMode="numeric"
+              placeholder="自定义"
+              value={myStakeInput}
+              onChange={(e) => setMyStakeInput(e.target.value)}
+              className="min-w-0 flex-1"
+            />
           </div>
         </div>
-      )}
+
+        {/* 态度选择 */}
+        <div className="mb-2">
+          <label className="mb-3 block font-medium text-[var(--text)]">选择你的态度</label>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => setSelectedSide('support')}
+              className={`rounded-xl border-2 border-solid p-4 transition-all ${
+                selectedSide === 'support'
+                  ? 'border-[var(--side-support-line)] bg-[var(--side-support)] text-[var(--side-support-text)] ring-2 ring-[var(--side-support-line)]'
+                  : 'border-[var(--line-strong)] bg-[var(--surface-2)] text-[var(--muted)] hover:border-[var(--line)]'
+              }`}
+            >
+              <span className="mb-1 block text-base font-bold">{supportLabel}</span>
+              <span className="block text-xs text-[var(--faint)]">认为 {challenge.hostName} 能成功</span>
+            </button>
+            <button
+              onClick={() => setSelectedSide('oppose')}
+              className={`rounded-xl border-2 border-solid p-4 transition-all ${
+                selectedSide === 'oppose'
+                  ? 'border-[var(--side-oppose-line)] bg-[var(--side-oppose)] text-[var(--side-oppose-text)] ring-2 ring-[var(--side-oppose-line)]'
+                  : 'border-[var(--line-strong)] bg-[var(--surface-2)] text-[var(--muted)] hover:border-[var(--line)]'
+              }`}
+            >
+              <span className="mb-1 block text-base font-bold">{opposeLabel}</span>
+              <span className="block text-xs text-[var(--faint)]">认为 {challenge.hostName} 会失败</span>
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

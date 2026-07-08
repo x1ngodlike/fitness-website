@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { X, Plus, Trash2, Image, ThumbsUp, ThumbsDown, Clock } from 'lucide-react';
+import { Plus, Trash2, Image, ThumbsUp, ThumbsDown, Clock } from 'lucide-react';
 import { Essay, Challenge } from '../../types';
 import { useChallengeStore } from '../../store/challengeStore';
 import { formatTime } from '../../utils/format';
 import { ImagePreviewModal } from '../common/ImagePreviewModal';
+import { Modal, Button, Input, Textarea, Badge, IconButton, useConfirm, useToast } from '../../components/ui';
 
 interface EssayDetailModalProps {
   challenge: Challenge;
@@ -12,110 +13,96 @@ interface EssayDetailModalProps {
 
 export function EssayDetailModal({ challenge, onClose }: EssayDetailModalProps) {
   const { essays, addEssay, deleteEssay, isAdminAuthenticated } = useChallengeStore();
+  const { confirm } = useConfirm();
   const [showAddModal, setShowAddModal] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const challengeEssays = useMemo(() => {
-    return essays
-      .filter(e => e.challengeId === challenge.id)
-      .sort((a, b) => b.createdAt - a.createdAt);
+    return essays.filter((e) => e.challengeId === challenge.id).sort((a, b) => b.createdAt - a.createdAt);
   }, [essays, challenge.id]);
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-neutral-900 rounded-2xl border border-neutral-800 w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="flex items-center justify-between p-4 border-b border-neutral-800">
-          <h3 className="text-xl font-bold text-white">
-            {challenge.hostName} 的小作文
-          </h3>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              添加
-            </button>
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-neutral-800 rounded-lg transition-colors"
-            >
-              <X className="w-5 h-5 text-neutral-400" />
-            </button>
+    <Modal
+      open
+      onClose={onClose}
+      size="lg"
+      title={`${challenge.hostName}的小作文`}
+      headerRight={
+        <Button variant="primary" size="sm" onClick={() => setShowAddModal(true)}>
+          <Plus className="w-4 h-4" />
+          添加
+        </Button>
+      }
+    >
+      <div className="space-y-3">
+        {challengeEssays.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-[var(--line-strong)] py-10 text-center">
+            <div className="mb-3 text-4xl">📝</div>
+            <p className="text-sm text-[var(--faint)]">还没有小作文，快来发布第一条吧！</p>
           </div>
-        </div>
+        ) : (
+          challengeEssays.map((essay) => (
+            <div
+              key={essay.id}
+              className="group/essay relative overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--surface-2)] p-4 pl-5 transition-colors hover:border-[var(--line-strong)]"
+            >
+              {/* 左侧情感色条：红=利多 / 绿=利空（与红涨绿跌一致） */}
+              <span
+                className="absolute left-0 top-0 h-full w-1"
+                style={{ background: essay.sentiment === 'bullish' ? 'var(--up)' : 'var(--down)' }}
+              />
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {challengeEssays.length === 0 ? (
-            <div className="text-center py-8">
-              <div className="text-4xl mb-3">📝</div>
-              <p className="text-neutral-500">还没有小作文，快来发布第一条吧！</p>
-            </div>
-          ) : (
-            challengeEssays.map((essay) => (
-              <div
-                key={essay.id}
-                className="bg-neutral-800/50 rounded-xl p-4 relative"
-              >
-                {isAdminAuthenticated && (
-                  <button
-                    onClick={() => {
-                      if (confirm('确定要删除这条小作文吗？')) {
-                        deleteEssay(essay.id);
-                      }
-                    }}
-                    className="absolute top-3 right-3 p-1.5 hover:bg-red-500/20 rounded-lg transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4 text-red-400" />
-                  </button>
-                )}
+              {isAdminAuthenticated && (
+                <IconButton
+                  label="删除小作文"
+                  variant="danger"
+                  size="sm"
+                  className="absolute right-2.5 top-2.5 opacity-0 transition-opacity group-hover/essay:opacity-100 focus-visible:opacity-100"
+                  onClick={async () => {
+                    if (await confirm({ title: '删除小作文', message: '确定要删除这条小作文吗？', confirmText: '删除', danger: true })) {
+                      deleteEssay(essay.id);
+                    }
+                  }}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </IconButton>
+              )}
 
-                {essay.imageUrl && (
-                  <div
-                    className="mb-3 rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
-                    onClick={() => setPreviewImage(essay.imageUrl!)}
-                  >
-                    <img
-                      src={essay.imageUrl}
-                      alt="小作文配图"
-                      className="w-full object-contain bg-neutral-950 max-h-64"
-                      loading="lazy"
-                    />
-                  </div>
-                )}
+              {essay.imageUrl && (
+                <div
+                  className="mb-3 cursor-pointer overflow-hidden rounded-lg border border-[var(--line)] transition-opacity hover:opacity-90"
+                  onClick={() => setPreviewImage(essay.imageUrl!)}
+                >
+                  <img
+                    src={essay.imageUrl}
+                    alt="小作文配图"
+                    className="max-h-64 w-full bg-[var(--bg)] object-contain"
+                    loading="lazy"
+                  />
+                </div>
+              )}
 
-                <p className="text-white text-sm mb-3 leading-relaxed">
-                  {essay.content}
-                </p>
+              <p className="mb-3 text-sm leading-relaxed text-[var(--text)]">{essay.content}</p>
 
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`px-3 py-1 text-xs font-bold rounded-full ${
-                        essay.sentiment === 'bullish'
-                          ? 'bg-red-500/10 text-red-400'  // 利多 - 红色
-                          : 'bg-green-500/10 text-green-400'  // 利空 - 绿色
-                      }`}
-                    >
-                      {essay.sentiment === 'bullish' ? (
-                        <span className="flex items-center gap-1">
-                          <ThumbsUp className="w-3 h-3" /> 利多
-                        </span>
-                      ) : (
-                        <span className="flex items-center gap-1">
-                          <ThumbsDown className="w-3 h-3" /> 利空
-                        </span>
-                      )}
+              <div className="flex items-center justify-between">
+                <Badge variant={essay.sentiment === 'bullish' ? 'support' : 'oppose'} size="sm">
+                  {essay.sentiment === 'bullish' ? (
+                    <span className="flex items-center gap-1">
+                      <ThumbsUp className="w-3 h-3" /> 利多
                     </span>
-                  </div>
-                  <div className="flex items-center gap-1 text-xs text-neutral-500">
-                    <Clock className="w-3 h-3" />
-                    {formatTime(essay.createdAt)}
-                  </div>
+                  ) : (
+                    <span className="flex items-center gap-1">
+                      <ThumbsDown className="w-3 h-3" /> 利空
+                    </span>
+                  )}
+                </Badge>
+                <div className="flex items-center gap-1 text-xs text-[var(--faint)]">
+                  <Clock className="w-3 h-3" />
+                  {formatTime(essay.createdAt)}
                 </div>
               </div>
-            ))
-          )}
-        </div>
+            </div>
+          ))
+        )}
       </div>
 
       {showAddModal && (
@@ -128,13 +115,9 @@ export function EssayDetailModal({ challenge, onClose }: EssayDetailModalProps) 
       )}
 
       {previewImage && (
-        <ImagePreviewModal
-          src={previewImage}
-          alt="图片预览"
-          onClose={() => setPreviewImage(null)}
-        />
+        <ImagePreviewModal src={previewImage} alt="图片预览" onClose={() => setPreviewImage(null)} />
       )}
-    </div>
+    </Modal>
   );
 }
 
@@ -147,6 +130,7 @@ interface AddEssayModalProps {
 
 function AddEssayModal({ challengeId, hostName, onClose, onSuccess }: AddEssayModalProps) {
   const { addEssay } = useChallengeStore();
+  const { toast } = useToast();
   const [content, setContent] = useState('');
   const [sentiment, setSentiment] = useState<'bullish' | 'bearish'>('bullish');
   const [imageUrl, setImageUrl] = useState('');
@@ -162,10 +146,7 @@ function AddEssayModal({ challengeId, hostName, onClose, onSuccess }: AddEssayMo
     formData.append('image', file);
 
     try {
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
+      const response = await fetch('/api/upload', { method: 'POST', body: formData });
       const result = await response.json();
       if (result.url) {
         setImageUrl(result.url);
@@ -196,15 +177,10 @@ function AddEssayModal({ challengeId, hostName, onClose, onSuccess }: AddEssayMo
           const formData = new FormData();
           formData.append('image', file);
 
-          fetch('/api/upload', {
-            method: 'POST',
-            body: formData,
-          })
+          fetch('/api/upload', { method: 'POST', body: formData })
             .then((response) => response.json())
             .then((result) => {
-              if (result.url) {
-                setImageUrl(result.url);
-              }
+              if (result.url) setImageUrl(result.url);
             })
             .catch((error) => console.error('图片上传失败:', error))
             .finally(() => setUploading(false));
@@ -216,7 +192,7 @@ function AddEssayModal({ challengeId, hostName, onClose, onSuccess }: AddEssayMo
 
   const handleSubmit = async () => {
     if (!content.trim()) {
-      alert('请输入小作文');
+      toast('请输入小作文', 'error');
       return;
     }
 
@@ -231,115 +207,106 @@ function AddEssayModal({ challengeId, hostName, onClose, onSuccess }: AddEssayMo
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-neutral-900 rounded-2xl border border-neutral-800 w-full max-w-md p-6">
-        <h3 className="text-xl font-bold text-white mb-4">发布小作文</h3>
-
-        {/* 配文输入 */}
-        <div className="mb-4">
-          <label className="block text-white font-medium mb-2">请输入小作文</label>
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            onPaste={handlePaste}
-            placeholder={`为 ${hostName} 的挑战发表你的看法...`}
-            className="w-full px-4 py-3 bg-neutral-800 border border-neutral-700 rounded-xl text-white placeholder-neutral-500 focus:outline-none focus:border-orange-500 resize-none"
-            rows={5}
-          />
-          <p className="text-xs text-neutral-500 mt-1">支持直接粘贴图片（Ctrl+V / Cmd+V）</p>
-        </div>
-
-        {/* 图片上传 */}
-        <div className="mb-4">
-          <label className="block text-white font-medium mb-2">
-            <Image className="w-4 h-4 inline mr-2 text-orange-500" />
-            图片（可选）
-          </label>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleImageUpload}
-            disabled={uploading}
-            className="w-full px-4 py-2 bg-neutral-800 border border-neutral-700 rounded-xl text-neutral-400 text-sm"
-          />
-
-          {imagePreview && (
-            <div className="mt-3 rounded-lg overflow-hidden relative">
-              <img
-                src={imagePreview}
-                alt="预览"
-                className="w-full h-32 object-cover"
-                loading="lazy"
-                decoding="async"
-              />
-              <button
-                onClick={() => {
-                  setImageUrl('');
-                  setImagePreview('');
-                }}
-                className="absolute top-2 right-2 p-1 bg-black/50 rounded-full hover:bg-black/70 transition-colors"
-              >
-                <X className="w-4 h-4 text-white" />
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* 观点选择 - 利空在左（绿色），利多在右（红色） */}
-        <div className="mb-6">
-          <label className="block text-white font-medium mb-2">观点</label>
-          <div className="grid grid-cols-2 gap-3">
-            {/* 利空 - 绿色 - 左侧 */}
-            <button
-              onClick={() => setSentiment('bearish')}
-              className={`p-3 rounded-xl border-2 border-solid transition-all ${
-                sentiment === 'bearish'
-                  ? 'border-green-500 bg-green-500/10 ring-2 ring-green-500/30'
-                  : 'border-neutral-700 bg-neutral-800 hover:border-neutral-600'
-              }`}
-            >
-              <span className={`block text-base font-bold mb-1 ${sentiment === 'bearish' ? 'text-green-400' : 'text-neutral-400'}`}>
-                <ThumbsDown className="w-5 h-5 inline mr-1" /> 利空
-              </span>
-              <span className="block text-xs text-neutral-500">看空挑战成功</span>
-            </button>
-            {/* 利多 - 红色 - 右侧 */}
-            <button
-              onClick={() => setSentiment('bullish')}
-              className={`p-3 rounded-xl border-2 border-solid transition-all ${
-                sentiment === 'bullish'
-                  ? 'border-red-500 bg-red-500/10 ring-2 ring-red-500/30'
-                  : 'border-neutral-700 bg-neutral-800 hover:border-neutral-600'
-              }`}
-            >
-              <span className={`block text-base font-bold mb-1 ${sentiment === 'bullish' ? 'text-red-400' : 'text-neutral-400'}`}>
-                <ThumbsUp className="w-5 h-5 inline mr-1" /> 利多
-              </span>
-              <span className="block text-xs text-neutral-500">看好挑战成功</span>
-            </button>
-          </div>
-        </div>
-
-        <div className="flex gap-3">
-          <button
-            onClick={onClose}
-            className="flex-1 py-3 bg-neutral-800 hover:bg-neutral-700 text-white rounded-xl font-medium transition-colors"
-          >
+    <Modal
+      open
+      onClose={onClose}
+      title="发布小作文"
+      footer={
+        <>
+          <Button variant="secondary" fullWidth onClick={onClose}>
             取消
-          </button>
-          <button
-            onClick={handleSubmit}
+          </Button>
+          <Button
+            variant="primary"
+            fullWidth
             disabled={!content.trim() || uploading}
-            className={`flex-1 py-3 rounded-xl font-bold transition-all ${
-              content.trim() && !uploading
-                ? 'bg-orange-500 hover:bg-orange-600 text-white'
-                : 'bg-neutral-700 text-neutral-500 cursor-not-allowed'
-            }`}
+            onClick={handleSubmit}
           >
             {uploading ? '上传中...' : '发布'}
+          </Button>
+        </>
+      }
+    >
+      <div className="mb-4">
+        <label className="mb-2 block font-medium text-[var(--text)]">请输入小作文</label>
+        <Textarea
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          onPaste={handlePaste}
+          placeholder={`为 ${hostName} 的挑战发表你的看法...`}
+          rows={5}
+        />
+        <p className="mt-1 text-xs text-[var(--faint)]">支持直接粘贴图片（Ctrl+V / Cmd+V）</p>
+      </div>
+
+      <div className="mb-4">
+        <label className="mb-2 block font-medium text-[var(--text)]">
+          <Image className="mr-2 inline h-4 w-4 text-[var(--accent)]" />
+          图片（可选）
+        </label>
+        <Input
+          type="file"
+          accept="image/*"
+          onChange={handleImageUpload}
+          disabled={uploading}
+          className="text-sm text-[var(--muted)]"
+        />
+
+        {imagePreview && (
+          <div className="relative mt-3 overflow-hidden rounded-lg border border-[var(--line)]">
+            <img src={imagePreview} alt="预览" className="h-32 w-full object-cover" loading="lazy" decoding="async" />
+            <button
+              onClick={() => {
+                setImageUrl('');
+                setImagePreview('');
+              }}
+              className="absolute right-2 top-2 rounded-full bg-black/50 p-1 transition-colors hover:bg-black/70"
+            >
+              <svg className="h-4 w-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
+              </svg>
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="mb-1">
+        <label className="mb-2 block font-medium text-[var(--text)]">观点</label>
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            onClick={() => setSentiment('bullish')}
+            className={`relative overflow-hidden rounded-xl border-2 p-3.5 text-left transition-all ${
+              sentiment === 'bullish'
+                ? 'border-[var(--up)] bg-[var(--up-soft)]'
+                : 'border-[var(--line-strong)] bg-[var(--surface-2)] hover:border-[var(--line)]'
+            }`}
+          >
+            <span
+              className="flex items-center gap-2 text-base font-bold"
+              style={{ color: sentiment === 'bullish' ? 'var(--up)' : 'var(--muted)' }}
+            >
+              <ThumbsUp className="h-5 w-5" /> 利多
+            </span>
+            <span className="mt-1 block text-xs text-[var(--faint)]">看好挑战成功</span>
+          </button>
+          <button
+            onClick={() => setSentiment('bearish')}
+            className={`relative overflow-hidden rounded-xl border-2 p-3.5 text-left transition-all ${
+              sentiment === 'bearish'
+                ? 'border-[var(--down)] bg-[var(--down-soft)]'
+                : 'border-[var(--line-strong)] bg-[var(--surface-2)] hover:border-[var(--line)]'
+            }`}
+          >
+            <span
+              className="flex items-center gap-2 text-base font-bold"
+              style={{ color: sentiment === 'bearish' ? 'var(--down)' : 'var(--muted)' }}
+            >
+              <ThumbsDown className="h-5 h-5" /> 利空
+            </span>
+            <span className="mt-1 block text-xs text-[var(--faint)]">看空挑战成功</span>
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

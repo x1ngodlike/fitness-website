@@ -7,7 +7,15 @@ export default {
     container: {
       center: true,
     },
-    extend: {},
+    extend: {
+      boxShadow: {
+        xs: 'var(--shadow-xs)',
+        sm: 'var(--shadow-sm)',
+        md: 'var(--shadow-md)',
+        lg: 'var(--shadow-lg)',
+        accent: 'var(--shadow-accent)',
+      },
+    },
   },
   plugins: [],
 };
