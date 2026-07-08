@@ -183,11 +183,18 @@ export function ChallengeDetailPage() {
 
   return (
     <div className="min-h-screen bg-[var(--bg)]">
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 pt-20 pb-16">
-        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="mb-6 -ml-2">
-          <ArrowLeft className="w-5 h-5" />
-          返回
-        </Button>
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 pt-16 pb-16">
+        {/* 浮动置顶顶部栏：仅返回 */}
+        <div className="sticky top-16 z-40 -mx-4 mb-4 flex items-center border-b border-[var(--line)] bg-[var(--bg-90)] px-4 py-3 backdrop-blur-xl sm:-mx-6 sm:px-6">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-[var(--muted)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--text)]"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            返回
+          </button>
+        </div>
 
         <div className="overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--surface)] shadow-[var(--shadow-md)]">
           {/* 英雄封面 — 与首页卡片 / 小作文弹窗同源 */}

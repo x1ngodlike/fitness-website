@@ -62,7 +62,7 @@ export const Modal = ({
         onClick={(e) => e.stopPropagation()}
       >
         {!hideHeader && (
-          <div className="flex items-center justify-between gap-3 mb-4">
+          <div className="sticky top-0 z-10 -mx-5 mb-4 flex items-center justify-between gap-3 border-b border-[var(--line)] bg-[var(--surface)] px-5 pb-3 pt-5 sm:-mx-6 sm:px-6 sm:pt-6">
             <h3 className="font-display text-lg font-bold text-[var(--text)] truncate">{title}</h3>
             <div className="flex items-center gap-2 flex-shrink-0">
               {headerRight}
