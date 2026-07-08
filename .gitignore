@@ -6,7 +6,7 @@ dist/
 deploy/backend/node_modules/
 
 # 数据
-data/
+/data/
 db.json
 
 # 日志

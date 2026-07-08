@@ -6,7 +6,6 @@ dist
 
 # 数据/部署/日志
 deploy/backend/node_modules
-/data/
 *.log
 .DS_Store
 
