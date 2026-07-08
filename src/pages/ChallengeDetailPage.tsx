@@ -191,7 +191,7 @@ export function ChallengeDetailPage() {
 
         <div className="overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--surface)] shadow-[var(--shadow-md)]">
           {/* 英雄封面 — 与首页卡片 / 小作文弹窗同源 */}
-          <div className="relative aspect-[16/9] overflow-hidden">
+          <div className="relative aspect-[21/9] overflow-hidden">
             <img
               src={challenge.coverImage}
               alt={challenge.theme}

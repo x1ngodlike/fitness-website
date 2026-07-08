@@ -33,6 +33,9 @@ export function ChallengeCard({ challenge, essays, onEssayClick }: ChallengeCard
       to={`/challenge/${challenge.id}`}
       className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--surface)] shadow-[var(--shadow-sm)] transition-all duration-300 hover:-translate-y-1 hover:border-[var(--accent-line)] hover:shadow-[var(--shadow-lg)]"
     >
+      {/* hover 细线闪烁 */}
+      <span className="card-line" aria-hidden="true" />
+
       {/* 封面 */}
       <div className="relative aspect-[16/9] overflow-hidden">
         <img
