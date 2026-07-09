@@ -122,8 +122,11 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
       const essayArr = Array.isArray(essayList) ? essayList : ([] as Essay[]);
       set({ challenges: arr, essays: essayArr });
     } catch (e) {
-      console.error('Failed to load challenges:', e);
-      set({ challenges: [], essays: [] });
+      console.error('Failed to load challenges, falling back to test mode:', e);
+      // 后端不可用时，自动回退到测试模式（纯静态部署场景）
+      const allEssays: Essay[] = mockChallenges.flatMap((c) => c.essays || []);
+      set({ challenges: mockChallenges, essays: allEssays, envMode: 'test' });
+      saveMeta({ envMode: 'test' });
     }
   },
 
