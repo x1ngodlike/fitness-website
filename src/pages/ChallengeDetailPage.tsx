@@ -84,8 +84,9 @@ export function ChallengeDetailPage() {
   const effectiveStatus = getEffectiveStatus(challenge);
 
   const isExpired = () => {
-    const endDate = new Date(challenge.endDate).getTime();
-    return Date.now() > endDate;
+    const endOfDay = new Date(challenge.endDate);
+    endOfDay.setHours(23, 59, 59, 999);
+    return Date.now() > endOfDay.getTime();
   };
 
   const totalCount = challenge.participants.length;

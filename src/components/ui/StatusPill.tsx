@@ -47,8 +47,12 @@ export function getEffectiveStatus(challenge: {
   status: StatusPillStatus;
   endDate: string;
 }): StatusPillStatus {
-  if (challenge.status === 'active' && new Date(challenge.endDate).getTime() < Date.now()) {
-    return 'pending';
+  if (challenge.status === 'active') {
+    const endOfDay = new Date(challenge.endDate);
+    endOfDay.setHours(23, 59, 59, 999);
+    if (endOfDay.getTime() < Date.now()) {
+      return 'pending';
+    }
   }
   return challenge.status;
 }

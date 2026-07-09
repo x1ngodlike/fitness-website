@@ -228,7 +228,10 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
     if (!challenge) return false;
     if (challenge.isBlocked) return false;
     if (challenge.status !== 'active') return false;
-    if (new Date(challenge.endDate).getTime() < Date.now()) return false;
+
+    const endOfDay = new Date(challenge.endDate);
+    endOfDay.setHours(23, 59, 59, 999);
+    if (endOfDay.getTime() < Date.now()) return false;
 
     const today = new Date();
     const joinDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
@@ -243,17 +246,28 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
       joinTime: joinDate,
     };
 
-    set((s) => ({
-      challenges: s.challenges.map((c) =>
-        c.id === challengeId ? { ...c, participants: [...c.participants, newParticipant] } : c
-      ),
-    }));
+    if (get().envMode === 'test') {
+      set((s) => ({
+        challenges: s.challenges.map((c) =>
+          c.id === challengeId ? { ...c, participants: [...c.participants, newParticipant] } : c
+        ),
+      }));
+      return true;
+    }
 
-    if (get().envMode === 'test') return true;
     try {
-      const latest = get().challenges.find((c) => c.id === challengeId);
       const token = loadToken();
-      if (latest) await http.put(`/challenges/${challengeId}`, latest, token);
+      const updatedChallenge = {
+        ...challenge,
+        participants: [...challenge.participants, newParticipant],
+      };
+      await http.put(`/challenges/${challengeId}`, updatedChallenge, token);
+
+      set((s) => ({
+        challenges: s.challenges.map((c) =>
+          c.id === challengeId ? { ...c, participants: [...c.participants, newParticipant] } : c
+        ),
+      }));
       return true;
     } catch (e) {
       console.error(e);
