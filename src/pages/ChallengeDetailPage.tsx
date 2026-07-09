@@ -5,6 +5,7 @@ import { useChallengeStore } from '../store/challengeStore';
 
 import { FALLBACK_COVER } from '../data/placeholderImages';
 import { Button, Input, Badge, Modal, StatusPill, getEffectiveStatus } from '../components/ui';
+import { ParticipantGrid } from '../components/participant/ParticipantGrid';
 
 export function ChallengeDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -13,9 +14,11 @@ export function ChallengeDetailPage() {
   const joinChallenge = useChallengeStore((state) => state.joinChallenge);
   const setChallengeResult = useChallengeStore((state) => state.setChallengeResult);
   const isAdminAuthenticated = useChallengeStore((state) => state.isAdminAuthenticated);
+  const participants = useChallengeStore((state) => state.participants);
 
   const [showJoinModal, setShowJoinModal] = useState(false);
-  const [participantName, setParticipantName] = useState('');
+  const [selectedParticipantId, setSelectedParticipantId] = useState<string | undefined>();
+  const [selectedParticipantName, setSelectedParticipantName] = useState('');
   const [myStakeInput, setMyStakeInput] = useState('100');
   const [selectedSide, setSelectedSide] = useState<'support' | 'oppose' | null>(null);
   const [joinError, setJoinError] = useState('');
@@ -41,37 +44,44 @@ export function ChallengeDetailPage() {
   const MIN_PARTICIPANT_STAKE = 100;
 
   const myStake = parseInt(myStakeInput, 10) || 0;
-  const canJoin = !!participantName && myStake >= MIN_PARTICIPANT_STAKE && !!selectedSide;
+  const canJoin = !!selectedParticipantId && myStake >= MIN_PARTICIPANT_STAKE && !!selectedSide;
 
   const handleJoin = async () => {
-    if (!participantName || myStake < MIN_PARTICIPANT_STAKE || !selectedSide) {
-      setJoinError(`参与金额不能低于${MIN_PARTICIPANT_STAKE}元`);
+    if (!selectedParticipantId || myStake < MIN_PARTICIPANT_STAKE || !selectedSide) {
+      if (!selectedParticipantId) {
+        setJoinError('请选择参与者');
+      } else {
+        setJoinError(`参与金额不能低于${MIN_PARTICIPANT_STAKE}元`);
+      }
       return;
     }
     if (joining) return;
 
     setJoining(true);
 
-    const savedName = participantName;
+    const savedParticipantId = selectedParticipantId;
+    const savedParticipantName = selectedParticipantName;
     const savedStake = myStakeInput;
     const savedSide = selectedSide;
 
     setShowJoinModal(false);
-    setParticipantName('');
+    setSelectedParticipantId(undefined);
+    setSelectedParticipantName('');
     setMyStakeInput('100');
     setSelectedSide(null);
     setJoinError('');
 
     setTimeout(async () => {
       try {
-        const ok = await joinChallenge(challenge.id, savedName, myStake, savedSide);
+        const ok = await joinChallenge(challenge.id, savedParticipantId, savedParticipantName, myStake, savedSide);
         if (!ok) {
           throw new Error('挑战已封档或已结束，无法参与');
         }
       } catch (e) {
         console.error('Join challenge failed:', e);
         setShowJoinModal(true);
-        setParticipantName(savedName);
+        setSelectedParticipantId(savedParticipantId);
+        setSelectedParticipantName(savedParticipantName);
         setMyStakeInput(savedStake);
         setSelectedSide(savedSide);
         setJoinError((e as Error).message || '参与失败，请重试');
@@ -514,7 +524,7 @@ export function ChallengeDetailPage() {
           </>
         }
       >
-        <p className="mb-6 text-sm text-[var(--muted)]">填写信息并选择你的态度</p>
+        <p className="mb-6 text-sm text-[var(--muted)]">选择参与者并选择你的态度</p>
 
         {joinError && (
           <div className="mb-4 rounded-xl border border-[var(--bad-line)] bg-[var(--bad-soft)] p-3 text-sm text-[var(--bad)]">
@@ -525,13 +535,16 @@ export function ChallengeDetailPage() {
         <div className="mb-4">
           <label className="mb-3 block font-medium text-[var(--text)]">
             <User className="mr-2 inline h-4 w-4 text-[var(--accent)]" />
-            你的姓名
+            选择参与者
           </label>
-          <Input
-            type="text"
-            placeholder="输入你的姓名..."
-            value={participantName}
-            onChange={(e) => setParticipantName(e.target.value)}
+          <ParticipantGrid
+            participants={participants}
+            selectedId={selectedParticipantId}
+            onSelect={(id, name) => {
+              setSelectedParticipantId(id);
+              setSelectedParticipantName(name);
+            }}
+            disabledIds={challenge.participants.map((p) => p.participantId).filter(Boolean) as string[]}
           />
         </div>
 

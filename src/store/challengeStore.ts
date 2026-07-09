@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Challenge, Participant, Essay } from '../types';
+import { Challenge, Participant, Essay, ParticipantItem } from '../types';
 import { mockChallenges } from '../data/mockData';
 
 export type EnvMode = 'test' | 'production';
@@ -12,6 +12,7 @@ const KEY_META = 'challenge-meta-v1';
 const KEY_API_TOKEN = 'challenge-api-token';
 const KEY_LOCAL_CHALLENGES = 'challenge-data-v1';
 const KEY_LOCAL_ESSAYS = 'essay-data-v1';
+const KEY_LOCAL_PARTICIPANTS = 'participant-data-v1';
 
 interface Meta {
   envMode: EnvMode;
@@ -77,6 +78,20 @@ const loadLocalEssays = (): Essay[] => {
   return [];
 };
 
+const saveLocalParticipants = (participants: ParticipantItem[]) => {
+  try {
+    localStorage.setItem(KEY_LOCAL_PARTICIPANTS, JSON.stringify(participants));
+  } catch { /* ignore */ }
+};
+
+const loadLocalParticipants = (): ParticipantItem[] => {
+  try {
+    const raw = localStorage.getItem(KEY_LOCAL_PARTICIPANTS);
+    if (raw) return JSON.parse(raw);
+  } catch { /* ignore */ }
+  return [];
+};
+
 // —— 轻量 fetch wrapper ——
 const http = {
   async get<T>(path: string, token?: string | null): Promise<T> {
@@ -112,6 +127,7 @@ const http = {
 interface ChallengeStore {
   challenges: Challenge[];
   essays: Essay[];
+  participants: ParticipantItem[];
   isAdminAuthenticated: boolean;
   envMode: EnvMode;
   init: () => Promise<void>;
@@ -121,7 +137,7 @@ interface ChallengeStore {
   addChallenge: (challenge: Omit<Challenge, 'id' | 'createdAt' | 'participants' | 'essays' | 'isBlocked' | 'status'>) => Promise<void>;
   updateChallenge: (challengeId: string, updates: Partial<Challenge>) => Promise<void>;
   toggleBlock: (challengeId: string) => Promise<void>;
-  joinChallenge: (challengeId: string, participantName: string, stake: number, side: 'support' | 'oppose') => Promise<boolean>;
+  joinChallenge: (challengeId: string, participantId: string, participantName: string, stake: number, side: 'support' | 'oppose') => Promise<boolean>;
   setChallengeResult: (challengeId: string, hostResult: 'success' | 'failed') => Promise<void>;
   updateParticipant: (challengeId: string, participantId: string, updates: Partial<Participant>) => Promise<void>;
   deleteParticipant: (challengeId: string, participantId: string) => Promise<void>;
@@ -129,11 +145,16 @@ interface ChallengeStore {
   getChallengeById: (id: string) => Challenge | undefined;
   addEssay: (essay: Omit<Essay, 'id' | 'createdAt'>) => Promise<void>;
   deleteEssay: (essayId: string) => Promise<void>;
+  loadParticipants: () => Promise<void>;
+  addParticipantItem: (name: string, avatar?: string) => Promise<boolean>;
+  updateParticipantItem: (id: string, updates: Partial<ParticipantItem>) => Promise<boolean>;
+  deleteParticipantItem: (id: string) => Promise<boolean>;
 }
 
 export const useChallengeStore = create<ChallengeStore>((set, get) => ({
   challenges: [],
   essays: [],
+  participants: [],
   isAdminAuthenticated: meta.isAdminAuthenticated === true,
   // 本地开发环境默认进入测试模式（避免需要后端API），生产环境默认正式模式
   envMode: import.meta.env.DEV ? 'test' : (meta.envMode === 'test' ? 'test' : 'production'),
@@ -143,13 +164,15 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
     if (get().envMode === 'test') {
       const savedChallenges = loadLocalChallenges();
       const savedEssays = loadLocalEssays();
+      const savedParticipants = loadLocalParticipants();
       if (savedChallenges.length > 0) {
-        set({ challenges: savedChallenges, essays: savedEssays });
+        set({ challenges: savedChallenges, essays: savedEssays, participants: savedParticipants });
       } else {
         const allEssays: Essay[] = mockChallenges.flatMap((c) => c.essays || []);
-        set({ challenges: mockChallenges, essays: allEssays });
+        set({ challenges: mockChallenges, essays: allEssays, participants: [] });
         saveLocalChallenges(mockChallenges);
         saveLocalEssays(allEssays);
+        saveLocalParticipants([]);
       }
       return;
     }
@@ -158,10 +181,12 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
       const arr = Array.isArray(list) ? list : ([] as Challenge[]);
       const essayList = await http.get<Essay[]>('/essays').catch(() => [] as Essay[]);
       const essayArr = Array.isArray(essayList) ? essayList : ([] as Essay[]);
-      set({ challenges: arr, essays: essayArr });
+      const participantList = await http.get<ParticipantItem[]>('/participants').catch(() => [] as ParticipantItem[]);
+      const participantArr = Array.isArray(participantList) ? participantList : ([] as ParticipantItem[]);
+      set({ challenges: arr, essays: essayArr, participants: participantArr });
     } catch (e) {
-      console.error('Failed to load challenges from server:', e);
-      set({ challenges: [], essays: [] });
+      console.error('Failed to load data from server:', e);
+      set({ challenges: [], essays: [], participants: [] });
     }
   },
 
@@ -269,7 +294,7 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
     } catch (e) { console.error(e); }
   },
 
-  joinChallenge: async (challengeId, participantName, stake, side) => {
+  joinChallenge: async (challengeId, participantId, participantName, stake, side) => {
     const challenge = get().challenges.find((c) => c.id === challengeId);
     if (!challenge) {
       console.error('Join failed: challenge not found');
@@ -298,6 +323,7 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
     const newParticipant: Participant = {
       id: `participant-${Date.now()}`,
       challengeId,
+      participantId,
       participantName,
       stake,
       side,
@@ -456,6 +482,107 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
       await http.delete(`/essays/${essayId}`, token);
     } catch (e) {
       console.error(e);
+    }
+  },
+
+  loadParticipants: async () => {
+    const mode = get().envMode;
+    if (mode === 'test') {
+      const saved = loadLocalParticipants();
+      set({ participants: saved });
+      return;
+    }
+    try {
+      const list = await http.get<ParticipantItem[]>('/participants');
+      const arr = Array.isArray(list) ? list : ([] as ParticipantItem[]);
+      set({ participants: arr });
+    } catch (e) {
+      console.error('Load participants failed:', e);
+    }
+  },
+
+  addParticipantItem: async (name, avatar) => {
+    const mode = get().envMode;
+    const now = Date.now();
+    const newItem: ParticipantItem = {
+      id: `participant-${now}`,
+      name,
+      avatar,
+      isActive: true,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    if (mode === 'test') {
+      set((s) => {
+        const updated = [...s.participants, newItem];
+        saveLocalParticipants(updated);
+        return { participants: updated };
+      });
+      return true;
+    }
+
+    try {
+      const token = loadToken();
+      const result = await http.post<ParticipantItem>('/participants', { name, avatar }, token);
+      set((s) => ({ participants: [...s.participants, result] }));
+      return true;
+    } catch (e) {
+      console.error('Add participant failed:', e);
+      return false;
+    }
+  },
+
+  updateParticipantItem: async (id, updates) => {
+    const mode = get().envMode;
+    
+    set((s) => {
+      const updated = s.participants.map((p) =>
+        p.id === id ? { ...p, ...updates, updatedAt: Date.now() } : p
+      );
+      if (mode === 'test') saveLocalParticipants(updated);
+      return { participants: updated };
+    });
+
+    if (mode === 'test') return true;
+
+    try {
+      const token = loadToken();
+      await http.put(`/participants/${id}`, updates, token);
+      return true;
+    } catch (e) {
+      console.error('Update participant failed:', e);
+      return false;
+    }
+  },
+
+  deleteParticipantItem: async (id) => {
+    const mode = get().envMode;
+    
+    set((s) => {
+      const updatedParticipants = s.participants.filter((p) => p.id !== id);
+      const updatedChallenges = s.challenges.map((c) => ({
+        ...c,
+        participants: c.participants.map((p) =>
+          p.participantId === id ? { ...p, deleted: true } : p
+        ),
+      }));
+      if (mode === 'test') {
+        saveLocalParticipants(updatedParticipants);
+        saveLocalChallenges(updatedChallenges);
+      }
+      return { participants: updatedParticipants, challenges: updatedChallenges };
+    });
+
+    if (mode === 'test') return true;
+
+    try {
+      const token = loadToken();
+      await http.delete(`/participants/${id}`, token);
+      return true;
+    } catch (e) {
+      console.error('Delete participant failed:', e);
+      return false;
     }
   },
 }));

@@ -6,6 +6,7 @@ export { Textarea } from './Textarea';
 export { Select } from './Select';
 export { Badge } from './Badge';
 export type { BadgeVariant } from './Badge';
+export { Checkbox } from './Checkbox';
 export { StatusPill, getEffectiveStatus } from './StatusPill';
 export type { StatusPillStatus } from './StatusPill';
 export { Card } from './Card';

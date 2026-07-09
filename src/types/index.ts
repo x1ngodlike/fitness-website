@@ -2,11 +2,22 @@ export interface Participant {
   id: string;
   challengeId: string;
   participantName: string;
+  participantId?: string;
   stake: number;
-  side: 'support' | 'oppose'; // support=能, oppose=不能
+  side: 'support' | 'oppose';
   result: 'win' | 'lose' | 'pending';
   createdAt: number;
-  joinTime?: string; // 参加时间（格式：YYYY-MM-DD）
+  joinTime?: string;
+  deleted?: boolean;
+}
+
+export interface ParticipantItem {
+  id: string;
+  name: string;
+  avatar?: string;
+  isActive: boolean;
+  createdAt: number;
+  updatedAt: number;
 }
 
 export interface Essay {

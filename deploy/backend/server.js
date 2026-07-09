@@ -26,6 +26,9 @@ const BACKUP_DIR = path.join(DATA_DIR, 'backups');
 // 小作文图片目录（按挑战ID分组）
 const ESSAY_UPLOAD_DIR = path.join(DATA_DIR, 'essay-uploads');
 
+// 参与者头像目录
+const PARTICIPANT_UPLOAD_DIR = path.join(DATA_DIR, 'participant-uploads');
+
 // 加载自定义 Token（如果存在）
 function loadToken() {
   try {
@@ -165,6 +168,8 @@ const validToken = loadToken();
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 if (!fs.existsSync(BACKUP_DIR)) fs.mkdirSync(BACKUP_DIR, { recursive: true });
+if (!fs.existsSync(ESSAY_UPLOAD_DIR)) fs.mkdirSync(ESSAY_UPLOAD_DIR, { recursive: true });
+if (!fs.existsSync(PARTICIPANT_UPLOAD_DIR)) fs.mkdirSync(PARTICIPANT_UPLOAD_DIR, { recursive: true });
 
 // 定时自动备份（每天凌晨2点）
 function scheduleDailyBackup() {
@@ -231,6 +236,27 @@ const essayUpload = multer({
   },
 });
 
+// 参与者头像上传配置
+const participantStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    fs.mkdirSync(PARTICIPANT_UPLOAD_DIR, { recursive: true });
+    cb(null, PARTICIPANT_UPLOAD_DIR);
+  },
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname) || '.jpg';
+    const name = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`;
+    cb(null, name);
+  },
+});
+const participantUpload = multer({
+  storage: participantStorage,
+  limits: { fileSize: 2 * 1024 * 1024 }, // 2MB
+  fileFilter: (_req, file, cb) => {
+    if (!file.mimetype.startsWith('image/')) return cb(new Error('Only images allowed'));
+    cb(null, true);
+  },
+});
+
 // 图片压缩函数（优化大小，保持质量）
 async function compressImage(inputBuffer, maxWidth = 1920, quality = 85) {
   try {
@@ -255,7 +281,7 @@ async function compressImage(inputBuffer, maxWidth = 1920, quality = 85) {
   }
 }
 
-const defaultData = { challenges: [], essays: [], settings: {} };
+const defaultData = { challenges: [], essays: [], settings: {}, participants: [] };
 function loadDB() {
   try {
     if (!fs.existsSync(DB_FILE)) {
@@ -267,10 +293,11 @@ function loadDB() {
     if (!parsed.challenges) parsed.challenges = [];
     if (!parsed.essays) parsed.essays = [];
     if (!parsed.settings) parsed.settings = {};
+    if (!parsed.participants) parsed.participants = [];
     return parsed;
   } catch (e) {
     console.error('DB load error:', e);
-    return { challenges: [], essays: [], settings: {} };
+    return { challenges: [], essays: [], settings: {}, participants: [] };
   }
 }
 
@@ -295,6 +322,9 @@ app.use('/uploads', express.static(UPLOAD_DIR));
 
 // 静态托管小作文图片（按挑战ID分组）
 app.use('/essay-uploads', express.static(ESSAY_UPLOAD_DIR));
+
+// 静态托管参与者头像
+app.use('/participant-uploads', express.static(PARTICIPANT_UPLOAD_DIR));
 
 // API Token 验证中间件
 function requireToken(req, res, next) {
@@ -374,7 +404,9 @@ app.post('/api/restore', requireToken, (req, res) => {
   try {
     db = { 
       challenges: data.challenges || [],
-      essays: data.essays || []
+      essays: data.essays || [],
+      participants: data.participants || [],
+      settings: data.settings || {}
     };
     saveDB(db);
     res.json({ ok: true, challenges: db.challenges.length, essays: db.essays.length });
@@ -475,6 +507,149 @@ app.put('/api/settings', requireToken, (req, res) => {
   
   saveDB(db);
   res.json({ ok: true, settings: db.settings });
+});
+
+// 获取所有参与者（公开）
+app.get('/api/participants', (_req, res) => {
+  res.json(db.participants || []);
+});
+
+// 获取单个参与者（公开）
+app.get('/api/participants/:id', (req, res) => {
+  const participant = (db.participants || []).find((p) => p.id === req.params.id);
+  if (!participant) return res.status(404).json({ error: 'not found' });
+  res.json(participant);
+});
+
+// 创建参与者（需要 Token）
+app.post('/api/participants', requireToken, (req, res) => {
+  const data = req.body || {};
+  const name = String(data.name || '').trim();
+  
+  if (!name) {
+    return res.status(400).json({ error: '姓名不能为空' });
+  }
+  
+  const exists = (db.participants || []).find((p) => p.name === name);
+  if (exists) {
+    return res.status(400).json({ error: '姓名已存在' });
+  }
+  
+  const now = Date.now();
+  const newParticipant = {
+    id: `participant-${now}`,
+    name,
+    avatar: data.avatar ? String(data.avatar) : undefined,
+    isActive: data.isActive === undefined ? true : Boolean(data.isActive),
+    createdAt: now,
+    updatedAt: now,
+  };
+  
+  if (!db.participants) db.participants = [];
+  db.participants.push(newParticipant);
+  saveDB(db);
+  res.status(201).json(newParticipant);
+});
+
+// 更新参与者（需要 Token）
+app.put('/api/participants/:id', requireToken, (req, res) => {
+  const participants = db.participants || [];
+  const idx = participants.findIndex((p) => p.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'not found' });
+  
+  const data = req.body || {};
+  const current = participants[idx];
+  
+  if (data.name !== undefined) {
+    const name = String(data.name || '').trim();
+    if (!name) {
+      return res.status(400).json({ error: '姓名不能为空' });
+    }
+    const exists = participants.find((p) => p.id !== current.id && p.name === name);
+    if (exists) {
+      return res.status(400).json({ error: '姓名已存在' });
+    }
+    current.name = name;
+  }
+  
+  if (data.avatar !== undefined) {
+    current.avatar = data.avatar ? String(data.avatar) : undefined;
+  }
+  
+  if (data.isActive !== undefined) {
+    current.isActive = Boolean(data.isActive);
+  }
+  
+  current.updatedAt = Date.now();
+  saveDB(db);
+  res.json(current);
+});
+
+// 删除参与者（需要 Token）
+app.delete('/api/participants/:id', requireToken, (req, res) => {
+  const participants = db.participants || [];
+  const idx = participants.findIndex((p) => p.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'not found' });
+  
+  const deleted = participants.splice(idx, 1)[0];
+  
+  // 将挑战中的参与记录标记为"已删除"
+  db.challenges.forEach((challenge) => {
+    if (Array.isArray(challenge.participants)) {
+      challenge.participants.forEach((p) => {
+        if (p.participantId === deleted.id) {
+          p.deleted = true;
+        }
+      });
+    }
+  });
+  
+  // 删除头像文件
+  if (deleted.avatar) {
+    try {
+      const imagePath = path.join(PARTICIPANT_UPLOAD_DIR, path.basename(deleted.avatar));
+      if (fs.existsSync(imagePath)) {
+        fs.unlinkSync(imagePath);
+        console.log(`[participant] Removed avatar: ${imagePath}`);
+      }
+    } catch (e) {
+      console.error('Failed to delete participant avatar:', e);
+    }
+  }
+  
+  saveDB(db);
+  res.json({ ok: true, deleted });
+});
+
+// 上传参与者头像（需要 Token）
+app.post('/api/participants/:id/avatar', requireToken, participantUpload.single('image'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'no file' });
+  
+  try {
+    const participants = db.participants || [];
+    const idx = participants.findIndex((p) => p.id === req.params.id);
+    if (idx === -1) return res.status(404).json({ error: 'not found' });
+    
+    const originalPath = req.file.path;
+    const originalSize = req.file.size;
+    
+    const compressedBuffer = await compressImage(req.file.buffer, 512, 80);
+    const compressedSize = compressedBuffer.length;
+    
+    if (compressedSize < originalSize) {
+      fs.writeFileSync(originalPath, compressedBuffer);
+    }
+    
+    const avatarUrl = `/participant-uploads/${req.file.filename}`;
+    participants[idx].avatar = avatarUrl;
+    participants[idx].updatedAt = Date.now();
+    saveDB(db);
+    
+    res.json({ url: avatarUrl });
+  } catch (error) {
+    console.error('Avatar upload error:', error);
+    res.json({ url: `/participant-uploads/${req.file.filename}` });
+  }
 });
 
 // 图片上传（公开，用于小作文，带压缩）

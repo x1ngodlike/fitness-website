@@ -2,11 +2,12 @@ import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Edit2, CheckCircle, X, Lock, Unlock, Users, Save, Trash2, UserX, Download, Upload, AlertTriangle, ChevronDown, ChevronRight, Settings, Trophy, Globe, MoreVertical, Plus, LogOut, FlaskConical, Rocket, Activity, Wallet, Database } from 'lucide-react';
 import { useChallengeStore, loadToken } from '../store/challengeStore';
-import { Challenge, Participant } from '../types';
-import { Button, IconButton, Input, Textarea, Select, Tabs, Card, Modal, Badge, buttonClassName } from '../components/ui';
+import { Challenge, Participant, ParticipantItem } from '../types';
+import { Button, IconButton, Input, Textarea, Select, Tabs, Card, Modal, Badge, buttonClassName, Checkbox } from '../components/ui';
+import ParticipantManagementPage from './ParticipantManagementPage';
 
 type EffectiveStatus = 'active' | 'pending' | 'completed';
-type TabType = 'challenges' | 'settings' | 'backup';
+type TabType = 'challenges' | 'participants' | 'settings' | 'backup';
 
 function getEffectiveStatus(challenge: Challenge): EffectiveStatus {
   if (challenge.status === 'completed') return 'completed';
@@ -459,6 +460,10 @@ export function AdminPanelPage() {
             <Trophy className="w-5 h-5" />
             <span className="font-medium">挑战管理</span>
           </button>
+          <button onClick={() => setActiveTab('participants')} className={navItemClass(activeTab === 'participants')}>
+            <Users className="w-5 h-5" />
+            <span className="font-medium">参与管理</span>
+          </button>
           <button onClick={() => setActiveTab('backup')} className={navItemClass(activeTab === 'backup')}>
             <Database className="w-5 h-5" />
             <span className="font-medium">备份恢复</span>
@@ -483,7 +488,7 @@ export function AdminPanelPage() {
         {/* 桌面顶栏 */}
         <header className="hidden lg:flex sticky top-0 z-30 h-16 items-center justify-between px-8 bg-[var(--bg)]/80 backdrop-blur-xl border-b border-[var(--line)]">
           <h1 className="font-display text-lg font-bold">
-            {activeTab === 'challenges' ? '挑战管理' : activeTab === 'settings' ? '系统设置' : '备份恢复'}
+            {activeTab === 'challenges' ? '挑战管理' : activeTab === 'participants' ? '参与管理' : activeTab === 'settings' ? '系统设置' : '备份恢复'}
           </h1>
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="sm" onClick={() => navigate('/')}>返回首页</Button>
@@ -852,6 +857,11 @@ export function AdminPanelPage() {
                   )}
                 </div>
               </div>
+            )}
+
+            {/* 参与管理 */}
+            {activeTab === 'participants' && (
+              <ParticipantManagementPage />
             )}
 
             {/* 系统设置 */}
