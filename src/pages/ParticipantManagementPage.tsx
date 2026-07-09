@@ -219,10 +219,10 @@ export default function ParticipantManagementPage() {
   };
 
   return (
-    <div className="p-6">
+    <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-xl font-bold text-[var(--text)]">参与者管理</h2>
+          <h2 className="font-display text-xl font-bold text-[var(--text)]">参与者管理</h2>
           <p className="text-[var(--faint)] text-sm mt-1">
             共 {participants.length} 人 · 可拖拽行调整顺序（影响参与挑战弹窗的展示顺序）
           </p>
