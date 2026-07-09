@@ -448,6 +448,9 @@ export function ChallengeDetailPage() {
                   const isWinner = participant.result === 'win';
                   const amountWon = payout?.winnerAmounts[participant.id] || 0;
                   const amountLost = participant.result === 'lose' ? participant.stake : 0;
+                  // 通过 participantId 关联参与者库
+                  const linked = participant.participantId ? participants.find((p) => p.id === participant.participantId) : undefined;
+                  const displayName = linked?.name || participant.participantName;
 
                   return (
                     <div
@@ -455,12 +458,23 @@ export function ChallengeDetailPage() {
                       className="flex items-center justify-between rounded-xl bg-[var(--surface-2)] p-3"
                     >
                       <div className="flex items-center gap-2.5">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[var(--accent)] to-[var(--accent-deep)] font-bold text-sm text-white">
-                          {participant.participantName.charAt(0)}
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[var(--accent)] to-[var(--accent-deep)] font-bold text-sm text-white overflow-hidden flex-shrink-0">
+                          {linked?.avatar ? (
+                            <img src={linked.avatar} alt={displayName} className="w-full h-full object-cover" />
+                          ) : (
+                            displayName.charAt(0)
+                          )}
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-[var(--text)]">{participant.participantName}</p>
-                          <p className="text-xs text-[var(--faint)]">{getParticipantJoinTime(participant)}</p>
+                          <p className="text-sm font-medium text-[var(--text)]">{displayName}</p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-xs text-[var(--faint)]">{getParticipantJoinTime(participant)}</p>
+                            {participant.deleted && (
+                              <span className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-[var(--bad-soft)] text-[var(--bad)]">
+                                已删除
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
