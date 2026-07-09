@@ -43,8 +43,8 @@ export function AdminLoginPage() {
           style={{ background: 'radial-gradient(circle, var(--accent), transparent 70%)' }}
         />
         <div className="relative flex items-center gap-3">
-          <img src="/logo.png" alt="野兽俱乐部" className="h-11 w-11 rounded-xl object-contain" />
-          <span className="font-display text-lg font-bold tracking-tight">野兽俱乐部 · 控制台</span>
+          <img src="/logo.png" alt="壹拳俱乐部" className="h-11 w-11 rounded-xl object-contain" />
+          <span className="font-display text-lg font-bold tracking-tight">壹拳俱乐部 · 控制台</span>
         </div>
 
         <div className="relative max-w-md">
@@ -67,7 +67,7 @@ export function AdminLoginPage() {
         </div>
 
         <div className="relative text-xs text-[var(--faint)]">
-          © 野兽俱乐部 · 仅限授权管理员访问
+          © 壹拳俱乐部 · 仅限授权管理员访问
         </div>
       </aside>
 
@@ -76,8 +76,8 @@ export function AdminLoginPage() {
         <div className="w-full max-w-sm">
           {/* 移动端品牌 */}
           <div className="lg:hidden flex items-center gap-3 mb-10">
-            <img src="/logo.png" alt="野兽俱乐部" className="h-11 w-11 rounded-xl object-contain" />
-            <span className="font-display text-lg font-bold tracking-tight">野兽俱乐部 · 控制台</span>
+            <img src="/logo.png" alt="壹拳俱乐部" className="h-11 w-11 rounded-xl object-contain" />
+            <span className="font-display text-lg font-bold tracking-tight">壹拳俱乐部 · 控制台</span>
           </div>
 
           <div className="lg:text-center mb-8">

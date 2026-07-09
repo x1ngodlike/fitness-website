@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Calendar, Users, Trophy, X, User, Lock, Flame, Info } from 'lucide-react';
 import { useChallengeStore } from '../store/challengeStore';
-import { Challenge } from '../types';
+
 import { FALLBACK_COVER } from '../data/placeholderImages';
 import { Button, Input, Badge, Modal, StatusPill, getEffectiveStatus } from '../components/ui';
 

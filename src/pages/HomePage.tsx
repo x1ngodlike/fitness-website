@@ -45,10 +45,10 @@ export function HomePage() {
 
   const activeChallenges = filteredChallenges
     .filter((c) => c.effectiveStatus === 'active')
-    .sort((a, b) => new Date(a.endDate).getTime() - new Date(a.endDate).getTime());
+    .sort((a) => new Date(a.endDate).getTime() - new Date(a.endDate).getTime());
   const pendingChallenges = filteredChallenges
     .filter((c) => c.effectiveStatus === 'pending')
-    .sort((a, b) => new Date(a.endDate).getTime() - new Date(a.endDate).getTime());
+    .sort((a) => new Date(a.endDate).getTime() - new Date(a.endDate).getTime());
   const completedChallenges = filteredChallenges
     .filter((c) => c.effectiveStatus === 'completed')
     .sort((a, b) => new Date(b.endDate).getTime() - new Date(a.endDate).getTime());

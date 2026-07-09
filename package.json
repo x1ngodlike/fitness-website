@@ -8,16 +8,9 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "check": "tsc -b --noEmit",
-    "cap:sync": "npm run build && npx cap sync",
-    "cap:copy": "npm run build && npx cap copy",
-    "cap:open": "npx cap open android",
-    "cap:build": "npm run build && npx cap sync && cd android && ./gradlew assembleDebug && echo 'APK: android/app/build/outputs/apk/debug/app-debug.apk'"
+    "check": "tsc -b --noEmit"
   },
   "dependencies": {
-    "@capacitor/android": "^8.4.0",
-    "@capacitor/cli": "^8.4.0",
-    "@capacitor/core": "^8.4.0",
     "clsx": "^2.1.1",
     "lucide-react": "^0.511.0",
     "react": "^18.3.1",

@@ -34,7 +34,7 @@ const saveMeta = (payload: Partial<Meta>) => {
   try {
     const current = JSON.parse(localStorage.getItem(KEY_META) || '{}');
     localStorage.setItem(KEY_META, JSON.stringify({ ...current, ...payload }));
-  } catch {}
+  } catch { /* ignore */ }
 };
 
 const saveToken = (token: string | null) => {
@@ -44,7 +44,7 @@ const saveToken = (token: string | null) => {
     } else {
       localStorage.removeItem(KEY_API_TOKEN);
     }
-  } catch {}
+  } catch { /* ignore */ }
 };
 
 // —— 轻量 fetch wrapper ——
@@ -117,9 +117,9 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
     }
     try {
       const list = await http.get<Challenge[]>('/challenges');
-      const arr = Array.isArray(list) ? list : ((list as any)?.data ?? []);
+      const arr = Array.isArray(list) ? list : ([] as Challenge[]);
       const essayList = await http.get<Essay[]>('/essays').catch(() => [] as Essay[]);
-      const essayArr = Array.isArray(essayList) ? essayList : ((essayList as any)?.data ?? []);
+      const essayArr = Array.isArray(essayList) ? essayList : ([] as Essay[]);
       set({ challenges: arr, essays: essayArr });
     } catch (e) {
       console.error('Failed to load challenges:', e);
@@ -228,6 +228,7 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
     if (!challenge) return false;
     if (challenge.isBlocked) return false;
     if (challenge.status !== 'active') return false;
+    if (new Date(challenge.endDate).getTime() < Date.now()) return false;
 
     const today = new Date();
     const joinDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;

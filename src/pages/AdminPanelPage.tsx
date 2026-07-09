@@ -27,7 +27,6 @@ export function AdminPanelPage() {
   const deleteChallenge = useChallengeStore((state) => state.deleteChallenge);
 
   const [activeTab, setActiveTab] = useState<TabType>('challenges');
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<EffectiveStatus | 'all'>('all');
   const [expandedChallenges, setExpandedChallenges] = useState<Set<string>>(new Set());
@@ -130,7 +129,7 @@ export function AdminPanelPage() {
       } else {
         setBackupMessage({ type: 'error', text: result.error || '备份失败' });
       }
-    } catch (e) {
+    } catch {
       setBackupMessage({ type: 'error', text: '备份失败，请重试' });
     }
     setTimeout(() => setBackupMessage(null), 3000);
@@ -155,7 +154,7 @@ export function AdminPanelPage() {
       } else {
         setBackupMessage({ type: 'error', text: result.error || '恢复失败' });
       }
-    } catch (e) {
+    } catch {
       setBackupMessage({ type: 'error', text: '恢复失败，请重试' });
     }
     setIsRestoring(false);
@@ -180,7 +179,7 @@ export function AdminPanelPage() {
       } else {
         setBackupMessage({ type: 'error', text: result.error || '删除失败' });
       }
-    } catch (e) {
+    } catch {
       setBackupMessage({ type: 'error', text: '删除失败，请重试' });
     }
     setTimeout(() => setBackupMessage(null), 3000);
@@ -204,7 +203,7 @@ export function AdminPanelPage() {
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
-    } catch (e) {
+    } catch {
       setBackupMessage({ type: 'error', text: '下载失败，请重试' });
       setTimeout(() => setBackupMessage(null), 3000);
     }
@@ -229,7 +228,7 @@ export function AdminPanelPage() {
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
       setBackupMessage({ type: 'success', text: '备份成功！文件已下载' });
-    } catch (e) {
+    } catch {
       setBackupMessage({ type: 'error', text: '备份失败，请重试' });
     }
     setTimeout(() => setBackupMessage(null), 3000);
@@ -270,7 +269,7 @@ export function AdminPanelPage() {
       } else {
         setBackupMessage({ type: 'error', text: result.error || '恢复失败' });
       }
-    } catch (e) {
+    } catch {
       setBackupMessage({ type: 'error', text: '恢复失败，请检查文件格式' });
     }
 
@@ -448,9 +447,9 @@ export function AdminPanelPage() {
       {/* —— 桌面端侧边栏 —— */}
       <aside className="hidden lg:flex fixed inset-y-0 left-0 w-[264px] bg-[var(--surface)] border-r border-[var(--line)] flex-col z-40">
         <div className="h-16 px-5 flex items-center gap-3 border-b border-[var(--line)]">
-          <img src="/logo.png" alt="野兽俱乐部" className="h-9 w-9 rounded-xl object-contain" />
+          <img src="/logo.png" alt="壹拳俱乐部" className="h-9 w-9 rounded-xl object-contain" />
           <div className="leading-tight">
-            <div className="font-display font-bold tracking-tight">野兽俱乐部</div>
+            <div className="font-display font-bold tracking-tight">壹拳俱乐部</div>
             <div className="text-[11px] text-[var(--faint)]">管理控制台</div>
           </div>
         </div>
@@ -498,8 +497,8 @@ export function AdminPanelPage() {
         {/* 移动端顶栏 */}
         <header className="lg:hidden sticky top-0 z-30 flex items-center justify-between px-4 h-16 bg-[var(--bg-90)] backdrop-blur-xl border-b border-[var(--line)]">
           <Button variant="ghost" size="sm" onClick={() => navigate('/')}>
-            <img src="/logo.png" alt="野兽俱乐部" className="h-9 w-9 rounded-xl object-contain" />
-            <span className="font-display font-bold tracking-tight">野兽俱乐部</span>
+            <img src="/logo.png" alt="壹拳俱乐部" className="h-9 w-9 rounded-xl object-contain" />
+            <span className="font-display font-bold tracking-tight">壹拳俱乐部</span>
           </Button>
           <IconButton label="菜单" variant="ghost" size="sm" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
             <MoreVertical className="w-6 h-6" />

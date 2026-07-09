@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# 一键构建脚本（Unraid / macOS / Linux 都可执行）
+# 壹拳俱乐部 - 一键部署脚本（Unraid / macOS / Linux 均可执行）
 # 用法：chmod +x deploy/build.sh && ./deploy/build.sh
 #
 # 环境变量（可选，未设置时使用默认值）：
@@ -17,33 +17,35 @@ ADMIN_PASSWORD="${ADMIN_PASSWORD:-159357}"
 API_TOKEN="${API_TOKEN:-fitness-api-secret-token-2024}"
 
 echo "============================================="
-echo " Step 1/4 — Stop & remove old container"
+echo " 步骤 1/4 — 停止并删除旧容器"
 echo "============================================="
 if docker ps -a --format '{{.Names}}' | grep -q '^fitness-website$'; then
-  echo "Found existing container 'fitness-website', removing..."
+  echo "检测到已存在容器 'fitness-website'，正在删除..."
   docker rm -f fitness-website
-  echo "Old container removed."
+  echo "旧容器已删除。"
 else
-  echo "No existing container found, skipping."
+  echo "未找到旧容器，跳过此步骤。"
 fi
 
 echo
 echo "============================================="
-echo " Step 2/4 — Clean old build artifacts"
+echo " 步骤 2/4 — 清理旧构建产物"
 echo "============================================="
 rm -rf dist
-echo "OK"
+echo "清理完成"
 
 echo
 echo "============================================="
-echo " Step 3/4 — Docker build"
+echo " 步骤 3/4 — 构建 Docker 镜像"
 echo "============================================="
+echo "正在构建 Docker 镜像，请稍候..."
 docker build -t fitness-website:latest .
 
 echo
 echo "============================================="
-echo " Step 4/4 — Run container (port 5935)"
+echo " 步骤 4/4 — 启动容器（端口 5935）"
 echo "============================================="
+echo "正在启动容器..."
 docker run -d \
   --name fitness-website \
   --restart unless-stopped \
@@ -54,11 +56,12 @@ docker run -d \
   fitness-website:latest
 
 echo
-echo "✅ Done. Open http://$(hostname -I 2>/dev/null | awk '{print $1}' || echo 'your-server-ip'):5935"
+echo "✅ 部署完成！访问地址：http://$(hostname -I 2>/dev/null | awk '{print $1}' || echo '你的服务器IP'):5935"
 echo ""
-echo "📝 Default credentials:"
-echo "   Password: $ADMIN_PASSWORD"
+echo "📝 默认凭据："
+echo "   管理员密码: $ADMIN_PASSWORD"
 echo "   API Token: $API_TOKEN"
 echo ""
+echo "常用命令："
 echo "   docker logs -f fitness-website   # 查看日志"
-echo "   docker stop fitness-website       # 停止"
+echo "   docker stop fitness-website       # 停止服务"

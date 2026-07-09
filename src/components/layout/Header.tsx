@@ -22,9 +22,9 @@ export function Header() {
     <header className="fixed top-0 left-0 right-0 z-50 bg-[var(--bg-90)] backdrop-blur-xl border-b border-[var(--line)]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-2.5 group">
-          <img src="/logo.png" alt="野兽俱乐部" className="h-9 w-9 rounded-xl object-contain group-hover:scale-105 transition-transform" />
+          <img src="/logo.png" alt="壹拳俱乐部" className="h-9 w-9 rounded-xl object-contain group-hover:scale-105 transition-transform" />
           <span className="font-display text-lg font-bold tracking-tight text-[var(--text)]">
-            野兽俱乐部
+            壹拳俱乐部
           </span>
         </Link>
 

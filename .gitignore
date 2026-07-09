@@ -30,3 +30,7 @@ yarn-error.log*
 
 # Docker
 docker-compose.override.yml
+
+# 备份文件
+*.bak
+*.backup

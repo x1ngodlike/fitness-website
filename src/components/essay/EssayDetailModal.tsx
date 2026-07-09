@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Plus, Trash2, Image, ThumbsUp, ThumbsDown, Clock } from 'lucide-react';
-import { Essay, Challenge } from '../../types';
+import { Challenge } from '../../types';
 import { useChallengeStore } from '../../store/challengeStore';
 import { formatTime } from '../../utils/format';
 import { ImagePreviewModal } from '../common/ImagePreviewModal';
@@ -12,7 +12,7 @@ interface EssayDetailModalProps {
 }
 
 export function EssayDetailModal({ challenge, onClose }: EssayDetailModalProps) {
-  const { essays, addEssay, deleteEssay, isAdminAuthenticated } = useChallengeStore();
+  const { essays, deleteEssay, isAdminAuthenticated } = useChallengeStore();
   const { confirm } = useConfirm();
   const [showAddModal, setShowAddModal] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
