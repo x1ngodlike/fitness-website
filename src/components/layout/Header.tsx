@@ -1,14 +1,22 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Plus, Shield, LogOut, Menu, X } from 'lucide-react';
+import { Plus, Shield, LogOut, Menu, X, Sun, Moon, Monitor } from 'lucide-react';
 import { useChallengeStore } from '../../store/challengeStore';
 import { buttonClassName, IconButton } from '../ui';
+import { useTheme } from '../../hooks/useTheme';
+
+const THEME_LABELS: Record<string, string> = {
+  dark: '深色模式',
+  light: '浅色模式',
+  system: '跟随系统',
+};
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
   const isAdminAuthenticated = useChallengeStore((state) => state.isAdminAuthenticated);
   const logoutAdmin = useChallengeStore((state) => state.logoutAdmin);
+  const { theme, cycle } = useTheme();
 
   const handleLogout = () => {
     logoutAdmin();
@@ -28,8 +36,13 @@ export function Header() {
           </span>
         </Link>
 
-        {/* 桌面端：仅保留主操作与后台入口，去掉开发态环境切换 */}
+        {/* 桌面端 */}
         <div className="hidden lg:flex items-center gap-2">
+          <IconButton label={THEME_LABELS[theme]} size="sm" onClick={cycle}>
+            {theme === 'dark' && <Moon className="w-5 h-5" />}
+            {theme === 'light' && <Sun className="w-5 h-5" />}
+            {theme === 'system' && <Monitor className="w-5 h-5" />}
+          </IconButton>
           <Link to={adminHref} className={buttonClassName({ variant: 'ghost' })}>
             <Shield className="w-4 h-4" />
             管理后台
@@ -41,14 +54,20 @@ export function Header() {
         </div>
 
         {/* 移动端 */}
-        <IconButton
-          label={mobileMenuOpen ? '关闭菜单' : '打开菜单'}
-          size="sm"
-          className="lg:hidden"
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-        >
-          {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-        </IconButton>
+        <div className="flex items-center gap-1 lg:hidden">
+          <IconButton label={THEME_LABELS[theme]} size="sm" onClick={cycle}>
+            {theme === 'dark' && <Moon className="w-5 h-5" />}
+            {theme === 'light' && <Sun className="w-5 h-5" />}
+            {theme === 'system' && <Monitor className="w-5 h-5" />}
+          </IconButton>
+          <IconButton
+            label={mobileMenuOpen ? '关闭菜单' : '打开菜单'}
+            size="sm"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          >
+            {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </IconButton>
+        </div>
       </div>
 
         {mobileMenuOpen && (
