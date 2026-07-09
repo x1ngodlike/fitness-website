@@ -149,6 +149,7 @@ interface ChallengeStore {
   addParticipantItem: (name: string, avatar?: string) => Promise<ParticipantItem | null>;
   updateParticipantItem: (id: string, updates: Partial<ParticipantItem>) => Promise<boolean>;
   deleteParticipantItem: (id: string) => Promise<boolean>;
+  reorderParticipants: (orderedIds: string[]) => Promise<boolean>;
 }
 
 export const useChallengeStore = create<ChallengeStore>((set, get) => ({
@@ -585,6 +586,43 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
       return true;
     } catch (e) {
       console.error('Delete participant failed:', e);
+      return false;
+    }
+  },
+
+  reorderParticipants: async (orderedIds) => {
+    const mode = get().envMode;
+    const now = Date.now();
+
+    // 先按顺序排，再为每个分配 order
+    set((s) => {
+      const byId = new Map(s.participants.map((p) => [p.id, p]));
+      const ordered: ParticipantItem[] = [];
+      orderedIds.forEach((id, idx) => {
+        const item = byId.get(id);
+        if (item) {
+          ordered.push({ ...item, order: idx, updatedAt: now });
+          byId.delete(id);
+        }
+      });
+      // 未在 orderedIds 中的项追加在末尾
+      byId.forEach((item) => ordered.push({ ...item, order: ordered.length, updatedAt: now }));
+      if (mode === 'test') saveLocalParticipants(ordered);
+      return { participants: ordered };
+    });
+
+    if (mode === 'test') return true;
+
+    try {
+      const token = loadToken();
+      const latest = get().participants;
+      // 逐项 PUT（也可改成 PATCH 批量接口）
+      await Promise.all(
+        latest.map((p) => http.put(`/participants/${p.id}`, { order: p.order }, token).catch(() => undefined))
+      );
+      return true;
+    } catch (e) {
+      console.error('Reorder participants failed:', e);
       return false;
     }
   },

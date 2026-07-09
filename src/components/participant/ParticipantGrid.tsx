@@ -12,14 +12,23 @@ interface ParticipantGridProps {
 export function ParticipantGrid({ participants, selectedId, onSelect, disabledIds = [] }: ParticipantGridProps) {
   const [expanded, setExpanded] = useState(false);
 
-  const activeParticipants = participants.filter((p) => p.isActive);
-  const shownCount = expanded ? activeParticipants.length : Math.min(16, activeParticipants.length);
+  // 按 order 升序、createdAt 升序排序
+  const sorted = [...participants].sort((a, b) => {
+    const ao = a.order ?? Number.MAX_SAFE_INTEGER;
+    const bo = b.order ?? Number.MAX_SAFE_INTEGER;
+    if (ao !== bo) return ao - bo;
+    return a.createdAt - b.createdAt;
+  });
+  const activeParticipants = sorted.filter((p) => p.isActive);
+  // 1 行 6 个，前 2 行 = 12 个默认显示
+  const DEFAULT_VISIBLE = 12;
+  const shownCount = expanded ? activeParticipants.length : Math.min(DEFAULT_VISIBLE, activeParticipants.length);
   const shownParticipants = activeParticipants.slice(0, shownCount);
-  const hasMore = activeParticipants.length > 16;
+  const hasMore = activeParticipants.length > DEFAULT_VISIBLE;
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
+      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
         {shownParticipants.map((p) => {
           const isSelected = selectedId === p.id;
           const isDisabled = disabledIds.includes(p.id);

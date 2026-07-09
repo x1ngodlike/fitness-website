@@ -16,6 +16,7 @@ export interface ParticipantItem {
   name: string;
   avatar?: string;
   isActive: boolean;
+  order?: number; // 排序权重，数字越小越靠前
   createdAt: number;
   updatedAt: number;
 }

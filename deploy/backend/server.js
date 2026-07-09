@@ -500,7 +500,13 @@ app.put('/api/settings', requireToken, (req, res) => {
 
 // 获取所有参与者（公开）
 app.get('/api/participants', (_req, res) => {
-  res.json(db.participants || []);
+  const list = [...(db.participants || [])].sort((a, b) => {
+    const ao = a.order ?? Number.MAX_SAFE_INTEGER;
+    const bo = b.order ?? Number.MAX_SAFE_INTEGER;
+    if (ao !== bo) return ao - bo;
+    return (a.createdAt || 0) - (b.createdAt || 0);
+  });
+  res.json(list);
 });
 
 // 获取单个参与者（公开）
@@ -568,7 +574,12 @@ app.put('/api/participants/:id', requireToken, (req, res) => {
   if (data.isActive !== undefined) {
     current.isActive = Boolean(data.isActive);
   }
-  
+
+  if (data.order !== undefined) {
+    const n = Number(data.order);
+    if (!Number.isNaN(n)) current.order = n;
+  }
+
   current.updatedAt = Date.now();
   saveDB(db);
   res.json(current);

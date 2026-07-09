@@ -1,15 +1,69 @@
-import { useState } from 'react';
-import { Plus, Edit2, Trash2, Check, X, Upload, User } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Plus, Edit2, Trash2, Check, X, Upload, User, GripVertical } from 'lucide-react';
 import { useChallengeStore, loadToken } from '../store/challengeStore';
 import { ParticipantItem } from '../types';
 import { buttonClassName, Modal, Input, Checkbox, useToast } from '../components/ui';
 
 export default function ParticipantManagementPage() {
   const { toast } = useToast();
-  const { participants, addParticipantItem, updateParticipantItem, deleteParticipantItem } = useChallengeStore();
+  const { participants, addParticipantItem, updateParticipantItem, deleteParticipantItem, reorderParticipants } = useChallengeStore();
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingItem, setEditingItem] = useState<ParticipantItem | null>(null);
+
+  // 拖拽状态
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const [savingOrder, setSavingOrder] = useState(false);
+
+  // 排序：order 升序，缺省时按 createdAt 升序
+  const sortedParticipants = useMemo(() => {
+    return [...participants].sort((a, b) => {
+      const ao = a.order ?? Number.MAX_SAFE_INTEGER;
+      const bo = b.order ?? Number.MAX_SAFE_INTEGER;
+      if (ao !== bo) return ao - bo;
+      return a.createdAt - b.createdAt;
+    });
+  }, [participants]);
+
+  // 拖拽处理：被拖到某行上后，将 dragId 插入到 dragOverId 之前
+  const handleDragStart = (e: React.DragEvent<HTMLTableRowElement>, id: string) => {
+    setDragId(id);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', id);
+  };
+  const handleDragOver = (e: React.DragEvent<HTMLTableRowElement>, id: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragId && dragId !== id) setDragOverId(id);
+  };
+  const handleDragLeave = (id: string) => {
+    if (dragOverId === id) setDragOverId(null);
+  };
+  const handleDragEnd = () => {
+    setDragId(null);
+    setDragOverId(null);
+  };
+  const handleDrop = async (e: React.DragEvent<HTMLTableRowElement>, dropId: string) => {
+    e.preventDefault();
+    const sourceId = dragId || e.dataTransfer.getData('text/plain');
+    setDragId(null);
+    setDragOverId(null);
+    if (!sourceId || sourceId === dropId) return;
+
+    const ids = sortedParticipants.map((p) => p.id);
+    const fromIdx = ids.indexOf(sourceId);
+    const toIdx = ids.indexOf(dropId);
+    if (fromIdx === -1 || toIdx === -1) return;
+
+    ids.splice(fromIdx, 1);
+    ids.splice(toIdx, 0, sourceId);
+    setSavingOrder(true);
+    const ok = await reorderParticipants(ids);
+    setSavingOrder(false);
+    if (ok) toast('排序已保存', 'success');
+    else toast('排序保存失败，请重试', 'error');
+  };
 
   // 新增表单：name + 已创建后获得的 participantId（用于上传头像）
   const [addForm, setAddForm] = useState({ name: '', avatar: '', createdId: '' as string });
@@ -169,7 +223,9 @@ export default function ParticipantManagementPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-xl font-bold text-[var(--text)]">参与者管理</h2>
-          <p className="text-[var(--faint)] text-sm mt-1">共 {participants.length} 人</p>
+          <p className="text-[var(--faint)] text-sm mt-1">
+            共 {participants.length} 人 · 可拖拽行调整顺序（影响参与挑战弹窗的展示顺序）
+          </p>
         </div>
         <button
           onClick={() => {
@@ -187,6 +243,7 @@ export default function ParticipantManagementPage() {
         <table className="w-full">
           <thead className="bg-[var(--surface-2)]">
             <tr>
+              <th className="w-10 px-2 py-3"></th>
               <th className="px-6 py-3 text-left text-sm font-medium text-[var(--muted)]">头像</th>
               <th className="px-6 py-3 text-left text-sm font-medium text-[var(--muted)]">姓名</th>
               <th className="px-6 py-3 text-left text-sm font-medium text-[var(--muted)]">状态</th>
@@ -195,59 +252,77 @@ export default function ParticipantManagementPage() {
             </tr>
           </thead>
           <tbody>
-            {participants.length === 0 ? (
+            {sortedParticipants.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-6 py-12 text-center text-[var(--faint)]">
+                <td colSpan={6} className="px-6 py-12 text-center text-[var(--faint)]">
                   暂无参与者，请点击上方按钮添加
                 </td>
               </tr>
             ) : (
-              participants.map((item) => (
-                <tr key={item.id} className="border-t border-[var(--line)] hover:bg-[var(--hover)]">
-                  <td className="px-6 py-4">
-                    <div className="w-10 h-10 rounded-full bg-[var(--surface-2)] flex items-center justify-center overflow-hidden">
-                      {item.avatar ? (
-                        <img src={item.avatar} alt={item.name} className="w-full h-full object-cover" />
+              sortedParticipants.map((item) => {
+                const isDragging = dragId === item.id;
+                const isDragOver = dragOverId === item.id;
+                return (
+                  <tr
+                    key={item.id}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, item.id)}
+                    onDragOver={(e) => handleDragOver(e, item.id)}
+                    onDragLeave={() => handleDragLeave(item.id)}
+                    onDragEnd={handleDragEnd}
+                    onDrop={(e) => handleDrop(e, item.id)}
+                    className={`border-t border-[var(--line)] transition-colors ${
+                      isDragging ? 'opacity-50' : 'hover:bg-[var(--hover)]'
+                    } ${isDragOver ? 'bg-[var(--accent-soft)]' : ''} ${savingOrder ? 'cursor-wait' : 'cursor-grab active:cursor-grabbing'}`}
+                  >
+                    <td className="px-2 py-4 text-[var(--faint)]">
+                      <GripVertical className="w-4 h-4" />
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="w-10 h-10 rounded-full bg-[var(--surface-2)] flex items-center justify-center overflow-hidden">
+                        {item.avatar ? (
+                          <img src={item.avatar} alt={item.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <User className="w-5 h-5 text-[var(--muted)]" />
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-[var(--text)] font-medium">{item.name}</td>
+                    <td className="px-6 py-4">
+                      {item.isActive ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[var(--ok-soft)] text-[var(--ok)] text-xs font-medium">
+                          <Check className="w-3 h-3" />
+                          启用
+                        </span>
                       ) : (
-                        <User className="w-5 h-5 text-[var(--muted)]" />
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[var(--bad-soft)] text-[var(--bad)] text-xs font-medium">
+                          <X className="w-3 h-3" />
+                          停用
+                        </span>
                       )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-[var(--text)] font-medium">{item.name}</td>
-                  <td className="px-6 py-4">
-                    {item.isActive ? (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[var(--ok-soft)] text-[var(--ok)] text-xs font-medium">
-                        <Check className="w-3 h-3" />
-                        启用
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[var(--bad-soft)] text-[var(--bad)] text-xs font-medium">
-                        <X className="w-3 h-3" />
-                        停用
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-[var(--muted)]">
-                    {new Date(item.createdAt).toLocaleString('zh-CN')}
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => openEdit(item)}
-                        className={buttonClassName({ variant: 'ghost', size: 'sm' })}
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(item.id)}
-                        className={buttonClassName({ variant: 'danger', size: 'sm' })}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))
+                    </td>
+                    <td className="px-6 py-4 text-sm text-[var(--muted)]">
+                      {new Date(item.createdAt).toLocaleString('zh-CN')}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => openEdit(item)}
+                          className={buttonClassName({ variant: 'ghost', size: 'sm' })}
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(item.id)}
+                          className={buttonClassName({ variant: 'danger', size: 'sm' })}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
