@@ -743,7 +743,7 @@ export function AdminPanelPage() {
                                     />
                                   </div>
                                   <div>
-                                    <label className="text-sm text-[var(--muted)] mb-1.5 block">通赔金额</label>
+                                    <label className="text-sm text-[var(--muted)] mb-1.5 block">最高赔付金额</label>
                                     <Input
                                       type="number"
                                       value={editFormData.maxPayout}
@@ -751,7 +751,7 @@ export function AdminPanelPage() {
                                     />
                                   </div>
                                   <div>
-                                    <label className="text-sm text-[var(--muted)] mb-1.5 block">底仓金额</label>
+                                    <label className="text-sm text-[var(--muted)] mb-1.5 block">最低赔付金额</label>
                                     <Input
                                       type="number"
                                       min="200"
@@ -772,10 +772,10 @@ export function AdminPanelPage() {
                                   <p className="text-[var(--muted)] text-sm whitespace-pre-line">{challenge.goal}</p>
                                   <div className="flex items-center gap-5 text-sm mt-2">
                                     <span className="text-[var(--muted)]">
-                                      通赔：<span className="text-[var(--text)] font-semibold">{challenge.maxPayout}</span>
+                                      最高赔付：<span className="text-[var(--text)] font-semibold">{challenge.maxPayout}</span>
                                     </span>
                                     <span className="text-[var(--muted)]">
-                                      底仓：<span className="text-[var(--text)] font-semibold">{challenge.minStake}</span>
+                                      最低赔付：<span className="text-[var(--text)] font-semibold">{challenge.minStake}</span>
                                     </span>
                                   </div>
                                 </div>

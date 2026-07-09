@@ -38,8 +38,8 @@ export interface Challenge {
   coverImage: string;
   startDate: string;
   endDate: string;
-  maxPayout: number; // 通赔金额
-  minStake: number; // 底仓金额
+  maxPayout: number; // 最高赔付金额
+  minStake: number; // 最低赔付金额
   status: 'active' | 'pending' | 'completed'; // 进行中/待确认/已结束
   isBlocked: boolean; // 封档标签，只在active状态有效，禁止参与
   participants: Participant[];

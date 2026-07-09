@@ -114,7 +114,7 @@ const mockEssays = [
 ];
 
 const RAW_CHALLENGES: Challenge[] = [
-  // 1. 进行中的挑战（7/30天）- 底仓200
+  // 1. 进行中的挑战（7/30天）- 最低赔付200
   {
     id: 'mock-1',
     theme: '30天俯卧撑挑战',
@@ -163,7 +163,7 @@ const RAW_CHALLENGES: Challenge[] = [
     createdAt: now - 10 * day,
   },
 
-  // 2. 进行中的挑战 - 底仓100，封档状态
+  // 2. 进行中的挑战 - 最低赔付100，封档状态
   {
     id: 'mock-2',
     theme: '21天早起挑战',
@@ -347,7 +347,7 @@ const RAW_CHALLENGES: Challenge[] = [
     createdAt: now - 2 * day,
   },
 
-  // 7. 大额挑战 - 底仓500
+  // 7. 大额挑战 - 最低赔付500
   {
     id: 'mock-7',
     theme: '60天健身挑战',
