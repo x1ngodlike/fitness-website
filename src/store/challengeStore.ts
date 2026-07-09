@@ -10,6 +10,8 @@ const API_BASE = '/api';
 // —— Token 存储键 ——
 const KEY_META = 'challenge-meta-v1';
 const KEY_API_TOKEN = 'challenge-api-token';
+const KEY_LOCAL_CHALLENGES = 'challenge-data-v1';
+const KEY_LOCAL_ESSAYS = 'essay-data-v1';
 
 interface Meta {
   envMode: EnvMode;
@@ -45,6 +47,34 @@ const saveToken = (token: string | null) => {
       localStorage.removeItem(KEY_API_TOKEN);
     }
   } catch { /* ignore */ }
+};
+
+const saveLocalChallenges = (challenges: Challenge[]) => {
+  try {
+    localStorage.setItem(KEY_LOCAL_CHALLENGES, JSON.stringify(challenges));
+  } catch { /* ignore */ }
+};
+
+const loadLocalChallenges = (): Challenge[] => {
+  try {
+    const raw = localStorage.getItem(KEY_LOCAL_CHALLENGES);
+    if (raw) return JSON.parse(raw);
+  } catch { /* ignore */ }
+  return [];
+};
+
+const saveLocalEssays = (essays: Essay[]) => {
+  try {
+    localStorage.setItem(KEY_LOCAL_ESSAYS, JSON.stringify(essays));
+  } catch { /* ignore */ }
+};
+
+const loadLocalEssays = (): Essay[] => {
+  try {
+    const raw = localStorage.getItem(KEY_LOCAL_ESSAYS);
+    if (raw) return JSON.parse(raw);
+  } catch { /* ignore */ }
+  return [];
 };
 
 // —— 轻量 fetch wrapper ——
@@ -108,11 +138,19 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
   // 本地开发环境默认进入测试模式（避免需要后端API），生产环境默认正式模式
   envMode: import.meta.env.DEV ? 'test' : (meta.envMode === 'test' ? 'test' : 'production'),
 
-  // —— 启动时拉取所有挑战和小作文（正式环境走后端，测试环境走本地 mockData）——
+  // —— 启动时拉取所有挑战和小作文（正式环境走后端，测试环境走本地 localStorage/mockData）——
   init: async () => {
     if (get().envMode === 'test') {
-      const allEssays: Essay[] = mockChallenges.flatMap((c) => c.essays || []);
-      set({ challenges: mockChallenges, essays: allEssays });
+      const savedChallenges = loadLocalChallenges();
+      const savedEssays = loadLocalEssays();
+      if (savedChallenges.length > 0) {
+        set({ challenges: savedChallenges, essays: savedEssays });
+      } else {
+        const allEssays: Essay[] = mockChallenges.flatMap((c) => c.essays || []);
+        set({ challenges: mockChallenges, essays: allEssays });
+        saveLocalChallenges(mockChallenges);
+        saveLocalEssays(allEssays);
+      }
       return;
     }
     try {
@@ -122,11 +160,8 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
       const essayArr = Array.isArray(essayList) ? essayList : ([] as Essay[]);
       set({ challenges: arr, essays: essayArr });
     } catch (e) {
-      console.error('Failed to load challenges, falling back to test mode:', e);
-      // 后端不可用时，自动回退到测试模式（纯静态部署场景）
-      const allEssays: Essay[] = mockChallenges.flatMap((c) => c.essays || []);
-      set({ challenges: mockChallenges, essays: allEssays, envMode: 'test' });
-      saveMeta({ envMode: 'test' });
+      console.error('Failed to load challenges from server:', e);
+      set({ challenges: [], essays: [] });
     }
   },
 
@@ -175,7 +210,7 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
     get().init();
   },
 
-  // —— 测试环境：localState 里变一下，不持久化；正式环境：先调 API 成功后更新 state ——
+  // —— 测试环境：localState 里变一下，同时持久化到 localStorage；正式环境：先调 API 成功后更新 state ——
   addChallenge: async (challengeData) => {
     const mode = get().envMode;
     const newChallenge: Challenge = {
@@ -188,7 +223,11 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
       createdAt: Date.now(),
     };
     if (mode === 'test') {
-      set((s) => ({ challenges: [...s.challenges, newChallenge] }));
+      set((s) => {
+        const updated = [...s.challenges, newChallenge];
+        saveLocalChallenges(updated);
+        return { challenges: updated };
+      });
       return;
     }
     try {
@@ -196,15 +235,17 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
       await http.post('/challenges', newChallenge, token);
       set((s) => ({ challenges: [...s.challenges, newChallenge] }));
     } catch (e) {
-      console.error(e);
+      console.error('Add challenge failed:', e);
     }
   },
 
   updateChallenge: async (challengeId, updates) => {
     const mode = get().envMode;
-    set((s) => ({
-      challenges: s.challenges.map((c) => c.id === challengeId ? { ...c, ...updates } : c),
-    }));
+    set((s) => {
+      const updated = s.challenges.map((c) => c.id === challengeId ? { ...c, ...updates } : c);
+      if (mode === 'test') saveLocalChallenges(updated);
+      return { challenges: updated };
+    });
     if (mode === 'test') return;
     try {
       const latest = get().challenges.find((c) => c.id === challengeId);
@@ -215,9 +256,11 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
 
   toggleBlock: async (challengeId) => {
     const mode = get().envMode;
-    set((s) => ({
-      challenges: s.challenges.map((c) => c.id === challengeId ? { ...c, isBlocked: !c.isBlocked } : c),
-    }));
+    set((s) => {
+      const updated = s.challenges.map((c) => c.id === challengeId ? { ...c, isBlocked: !c.isBlocked } : c);
+      if (mode === 'test') saveLocalChallenges(updated);
+      return { challenges: updated };
+    });
     if (mode === 'test') return;
     try {
       const latest = get().challenges.find((c) => c.id === challengeId);
@@ -228,13 +271,27 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
 
   joinChallenge: async (challengeId, participantName, stake, side) => {
     const challenge = get().challenges.find((c) => c.id === challengeId);
-    if (!challenge) return false;
-    if (challenge.isBlocked) return false;
-    if (challenge.status !== 'active') return false;
+    if (!challenge) {
+      console.error('Join failed: challenge not found');
+      return false;
+    }
+    if (challenge.isBlocked) {
+      console.error('Join failed: challenge is blocked');
+      return false;
+    }
+    if (challenge.status !== 'active') {
+      console.error('Join failed: challenge status is not active, current:', challenge.status);
+      return false;
+    }
 
     const endOfDay = new Date(challenge.endDate);
     endOfDay.setHours(23, 59, 59, 999);
-    if (endOfDay.getTime() < Date.now()) return false;
+    if (endOfDay.getTime() < Date.now()) {
+      console.error('Join failed: challenge expired, endDate:', challenge.endDate);
+      return false;
+    }
+
+    console.log('Join challenge conditions met, envMode:', get().envMode);
 
     const today = new Date();
     const joinDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
@@ -250,11 +307,13 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
     };
 
     if (get().envMode === 'test') {
-      set((s) => ({
-        challenges: s.challenges.map((c) =>
+      set((s) => {
+        const updated = s.challenges.map((c) =>
           c.id === challengeId ? { ...c, participants: [...c.participants, newParticipant] } : c
-        ),
-      }));
+        );
+        saveLocalChallenges(updated);
+        return { challenges: updated };
+      });
       return true;
     }
 
@@ -273,14 +332,15 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
       }));
       return true;
     } catch (e) {
-      console.error(e);
+      console.error('Join challenge failed:', e);
       return false;
     }
   },
 
   setChallengeResult: async (challengeId, hostResult) => {
-    set((s) => ({
-      challenges: s.challenges.map((c) => {
+    const mode = get().envMode;
+    set((s) => {
+      const updated = s.challenges.map((c) => {
         if (c.id !== challengeId) return c;
         const updatedParticipants = c.participants.map((p): Participant => ({
           ...p,
@@ -288,10 +348,12 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
             ? (p.side === 'support' ? 'win' : 'lose')
             : (p.side === 'support' ? 'lose' : 'win'),
         }));
-        return { ...c, participants: updatedParticipants, status: 'completed' };
-      }),
-    }));
-    if (get().envMode === 'test') return;
+        return { ...c, participants: updatedParticipants, status: 'completed' as const };
+      });
+      if (mode === 'test') saveLocalChallenges(updated);
+      return { challenges: updated };
+    });
+    if (mode === 'test') return;
     try {
       const latest = get().challenges.find((c) => c.id === challengeId);
       const token = loadToken();
@@ -300,14 +362,17 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
   },
 
   updateParticipant: async (challengeId, participantId, updates) => {
-    set((s) => ({
-      challenges: s.challenges.map((c) =>
+    const mode = get().envMode;
+    set((s) => {
+      const updated = s.challenges.map((c) =>
         c.id === challengeId
           ? { ...c, participants: c.participants.map((p) => p.id === participantId ? { ...p, ...updates } : p) }
           : c
-      ),
-    }));
-    if (get().envMode === 'test') return;
+      );
+      if (mode === 'test') saveLocalChallenges(updated);
+      return { challenges: updated };
+    });
+    if (mode === 'test') return;
     try {
       const latest = get().challenges.find((c) => c.id === challengeId);
       const token = loadToken();
@@ -316,14 +381,17 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
   },
 
   deleteParticipant: async (challengeId, participantId) => {
-    set((s) => ({
-      challenges: s.challenges.map((c) =>
+    const mode = get().envMode;
+    set((s) => {
+      const updated = s.challenges.map((c) =>
         c.id === challengeId
           ? { ...c, participants: c.participants.filter((p) => p.id !== participantId) }
           : c
-      ),
-    }));
-    if (get().envMode === 'test') return;
+      );
+      if (mode === 'test') saveLocalChallenges(updated);
+      return { challenges: updated };
+    });
+    if (mode === 'test') return;
     try {
       const latest = get().challenges.find((c) => c.id === challengeId);
       const token = loadToken();
@@ -332,11 +400,17 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
   },
 
   deleteChallenge: async (challengeId) => {
-    set((s) => ({
-      challenges: s.challenges.filter((c) => c.id !== challengeId),
-      essays: s.essays.filter((e) => e.challengeId !== challengeId),
-    }));
-    if (get().envMode === 'test') return;
+    const mode = get().envMode;
+    set((s) => {
+      const updatedChallenges = s.challenges.filter((c) => c.id !== challengeId);
+      const updatedEssays = s.essays.filter((e) => e.challengeId !== challengeId);
+      if (mode === 'test') {
+        saveLocalChallenges(updatedChallenges);
+        saveLocalEssays(updatedEssays);
+      }
+      return { challenges: updatedChallenges, essays: updatedEssays };
+    });
+    if (mode === 'test') return;
     try {
       const token = loadToken();
       await http.delete(`/challenges/${challengeId}`, token);
@@ -351,21 +425,32 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
       id: `essay-${Date.now()}`,
       createdAt: Date.now(),
     };
+    const mode = get().envMode;
     
-    set((s) => ({ essays: [...s.essays, newEssay] }));
+    set((s) => {
+      const updated = [...s.essays, newEssay];
+      if (mode === 'test') saveLocalEssays(updated);
+      return { essays: updated };
+    });
     
-    if (get().envMode === 'test') return;
+    if (mode === 'test') return;
     try {
       await http.post('/essays', newEssay);
     } catch (e) {
-      console.error(e);
+      console.error('Add essay failed:', e);
     }
   },
 
   deleteEssay: async (essayId) => {
-    set((s) => ({ essays: s.essays.filter((e) => e.id !== essayId) }));
+    const mode = get().envMode;
     
-    if (get().envMode === 'test') return;
+    set((s) => {
+      const updated = s.essays.filter((e) => e.id !== essayId);
+      if (mode === 'test') saveLocalEssays(updated);
+      return { essays: updated };
+    });
+    
+    if (mode === 'test') return;
     try {
       const token = loadToken();
       await http.delete(`/essays/${essayId}`, token);
