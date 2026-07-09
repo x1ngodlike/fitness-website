@@ -546,8 +546,8 @@ export function ChallengeDetailPage() {
           </div>
         )}
 
-        <div className="mb-4">
-          <label className="mb-3 block font-medium text-[var(--text)]">
+        <div className="mb-3">
+          <label className="mb-2 block font-medium text-[var(--text)]">
             <User className="mr-2 inline h-4 w-4 text-[var(--accent)]" />
             选择参与者
           </label>
@@ -562,13 +562,13 @@ export function ChallengeDetailPage() {
           />
         </div>
 
-        <div className="mb-6">
-          <label className="mb-3 block font-medium text-[var(--text)]">
+        <div className="mb-3">
+          <label className="mb-2 block font-medium text-[var(--text)]">
             <Flame className="mr-2 inline h-4 w-4 text-[var(--accent)]" />
             你的押金 <span className="text-sm text-[var(--faint)]">(最低{MIN_PARTICIPANT_STAKE})</span>
           </label>
           <div className="flex flex-wrap gap-2">
-            {[100, 200, 500, 1000, 2000]
+            {[100, 200, 500, 1000]
               .filter((v, i, a) => v >= MIN_PARTICIPANT_STAKE && a.indexOf(v) === i)
               .map((amount) => (
                 <Button
@@ -594,7 +594,9 @@ export function ChallengeDetailPage() {
 
         {/* 态度选择 */}
         <div className="mb-2">
-          <label className="mb-3 block font-medium text-[var(--text)]">选择你的态度</label>
+          <label className="mb-2 block font-medium text-[var(--text)]">
+            选择你的态度
+          </label>
           <div className="grid grid-cols-2 gap-3">
             <button
               onClick={() => setSelectedSide('support')}

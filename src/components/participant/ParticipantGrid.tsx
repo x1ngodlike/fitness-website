@@ -27,8 +27,8 @@ export function ParticipantGrid({ participants, selectedId, onSelect, disabledId
   const hasMore = activeParticipants.length > DEFAULT_VISIBLE;
 
   return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+    <div className="space-y-2">
+      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-1.5 max-h-[240px] overflow-y-auto scroll-slim p-2">
         {shownParticipants.map((p) => {
           const isSelected = selectedId === p.id;
           const isDisabled = disabledIds.includes(p.id);
@@ -38,24 +38,31 @@ export function ParticipantGrid({ participants, selectedId, onSelect, disabledId
               key={p.id}
               onClick={() => !isDisabled && onSelect(p.id, p.name)}
               disabled={isDisabled}
-              className={`flex flex-col items-center gap-1.5 p-2 rounded-lg transition-all duration-200 min-h-[80px] ${
+              className={`relative flex flex-col items-center gap-1 p-1.5 rounded-lg transition-all duration-200 min-h-[66px] ${
                 isDisabled
-                  ? 'opacity-40 cursor-not-allowed'
-                  : isSelected
-                  ? 'bg-[var(--accent-soft)] ring-2 ring-[var(--accent)]'
+                  ? 'cursor-not-allowed'
+                  :                 isSelected
+                  ? 'bg-[var(--accent-soft)] ring-2 ring-[var(--accent)] z-10'
                   : 'bg-[var(--surface-2)] hover:bg-[var(--hover)]'
               }`}
             >
-              <div className="w-10 h-10 rounded-full bg-[var(--bg)] flex items-center justify-center overflow-hidden ring-1 ring-[var(--line)]">
-                {p.avatar ? (
-                  <img src={p.avatar} alt={p.name} className="w-full h-full object-cover" />
-                ) : (
-                  <User className="w-5 h-5 text-[var(--muted)]" />
-                )}
+              <div className={`flex flex-col items-center gap-1.5 ${isDisabled ? 'opacity-40' : ''}`}>
+                <div className="w-9 h-9 rounded-full bg-[var(--bg)] flex items-center justify-center overflow-hidden ring-1 ring-[var(--line)]">
+                  {p.avatar ? (
+                    <img src={p.avatar} alt={p.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <User className="w-5 h-5 text-[var(--muted)]" />
+                  )}
+                </div>
+                <span className="text-xs text-[var(--text)] w-full text-center leading-tight break-words line-clamp-2">
+                  {p.name}
+                </span>
               </div>
-              <span className="text-xs text-[var(--text)] w-full text-center leading-tight break-words line-clamp-2">
-                {p.name}
-              </span>
+              {isDisabled && (
+                <span className="absolute top-1 right-1 px-1 py-0.5 rounded bg-[var(--bad-soft)] text-[var(--bad)] text-[9px] font-medium leading-none">
+                  已参与
+                </span>
+              )}
             </button>
           );
         })}

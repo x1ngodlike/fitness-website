@@ -92,6 +92,24 @@ const loadLocalParticipants = (): ParticipantItem[] => {
   return [];
 };
 
+// —— 测试环境示例参与者（仅首次播种一次，方便本地预览/调试）——
+const SEED_PARTICIPANT_NAMES = [
+  '张伟', '王芳', '李娜', '刘洋', '陈静',
+  '杨帆', '赵磊', '黄敏', '周杰', '吴婷',
+];
+const seedParticipants = (): ParticipantItem[] => {
+  const now = Date.now();
+  const n = SEED_PARTICIPANT_NAMES.length;
+  return SEED_PARTICIPANT_NAMES.map((name, i) => ({
+    id: `participant-seed-${i + 1}`,
+    name,
+    isActive: true,
+    order: i + 1,
+    createdAt: now - (n - i) * 60_000,
+    updatedAt: now - (n - i) * 60_000,
+  }));
+};
+
 // —— 轻量 fetch wrapper ——
 const http = {
   async get<T>(path: string, token?: string | null): Promise<T> {
@@ -165,15 +183,24 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
     if (get().envMode === 'test') {
       const savedChallenges = loadLocalChallenges();
       const savedEssays = loadLocalEssays();
-      const savedParticipants = loadLocalParticipants();
+      let savedParticipants = loadLocalParticipants();
+
+      // 测试环境：首次启动且参与者池为空时，播种一批示例数据（仅一次，靠 flag 防止清空后反复回灌）
+      const SEED_FLAG = 'participant-seed-v1';
+      if (!localStorage.getItem(SEED_FLAG) && savedParticipants.length === 0) {
+        savedParticipants = seedParticipants();
+        saveLocalParticipants(savedParticipants);
+        localStorage.setItem(SEED_FLAG, '1');
+      }
+
       if (savedChallenges.length > 0) {
         set({ challenges: savedChallenges, essays: savedEssays, participants: savedParticipants });
       } else {
         const allEssays: Essay[] = mockChallenges.flatMap((c) => c.essays || []);
-        set({ challenges: mockChallenges, essays: allEssays, participants: [] });
+        set({ challenges: mockChallenges, essays: allEssays, participants: savedParticipants });
         saveLocalChallenges(mockChallenges);
         saveLocalEssays(allEssays);
-        saveLocalParticipants([]);
+        saveLocalParticipants(savedParticipants);
       }
       return;
     }

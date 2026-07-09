@@ -1,9 +1,9 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Edit2, CheckCircle, X, Lock, Unlock, Users, Save, Trash2, UserX, Download, Upload, AlertTriangle, ChevronDown, ChevronRight, Settings, Trophy, Globe, MoreVertical, Plus, LogOut, FlaskConical, Rocket, Activity, Wallet, Database } from 'lucide-react';
+import { Edit2, CheckCircle, X, Lock, Unlock, Users, Save, Trash2, UserX, UserPlus, Download, Upload, AlertTriangle, ChevronDown, ChevronRight, Settings, Trophy, Globe, MoreVertical, Plus, LogOut, FlaskConical, Rocket, Activity, Wallet, Database } from 'lucide-react';
 import { useChallengeStore, loadToken } from '../store/challengeStore';
 import { Challenge, Participant, ParticipantItem } from '../types';
-import { Button, IconButton, Input, Textarea, Select, Tabs, Card, Badge, buttonClassName, Checkbox } from '../components/ui';
+import { Button, IconButton, Input, Textarea, Select, Tabs, Card, Badge, buttonClassName, Checkbox, useConfirm, useToast } from '../components/ui';
 import ParticipantManagementPage from './ParticipantManagementPage';
 
 type EffectiveStatus = 'active' | 'pending' | 'completed';
@@ -26,8 +26,12 @@ export function AdminPanelPage() {
   const updateParticipant = useChallengeStore((state) => state.updateParticipant);
   const deleteParticipant = useChallengeStore((state) => state.deleteParticipant);
   const deleteChallenge = useChallengeStore((state) => state.deleteChallenge);
+  const joinChallenge = useChallengeStore((state) => state.joinChallenge);
   const participants = useChallengeStore((state) => state.participants);
   const loadParticipants = useChallengeStore((state) => state.loadParticipants);
+
+  const { confirm } = useConfirm();
+  const { toast } = useToast();
 
   const [activeTab, setActiveTab] = useState<TabType>('challenges');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -55,6 +59,13 @@ export function AdminPanelPage() {
     stake: 0,
     side: 'support' as 'support' | 'oppose',
     joinTime: '',
+  });
+
+  const [addingToChallenge, setAddingToChallenge] = useState<string | null>(null);
+  const [addParticipantData, setAddParticipantData] = useState({
+    participantId: '',
+    stake: 100,
+    side: 'support' as 'support' | 'oppose',
   });
 
   const [backupMessage, setBackupMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -145,7 +156,14 @@ export function AdminPanelPage() {
   };
 
   const restoreFromServerBackup = async (filename: string) => {
-    if (!confirm(`⚠️ 确定要从备份 "${filename}" 恢复吗？这将覆盖当前所有数据！`)) {
+    const okRestore = await confirm({
+      title: '从备份恢复',
+      message: `确定要从备份 "${filename}" 恢复吗？这将覆盖当前所有数据！`,
+      confirmText: '恢复',
+      cancelText: '取消',
+      danger: true,
+    });
+    if (!okRestore) {
       return;
     }
 
@@ -171,7 +189,14 @@ export function AdminPanelPage() {
   };
 
   const deleteServerBackup = async (filename: string) => {
-    if (!confirm(`确定要删除备份 "${filename}" 吗？`)) {
+    const okDelete = await confirm({
+      title: '删除备份',
+      message: `确定要删除备份 "${filename}" 吗？此操作不可撤销。`,
+      confirmText: '删除',
+      cancelText: '取消',
+      danger: true,
+    });
+    if (!okDelete) {
       return;
     }
 
@@ -247,7 +272,14 @@ export function AdminPanelPage() {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    if (!confirm('⚠️ 恢复数据将覆盖当前所有数据，确定继续吗？')) {
+    const okRestoreLocal = await confirm({
+      title: '恢复数据',
+      message: '恢复数据将覆盖当前所有数据，确定继续吗？',
+      confirmText: '恢复',
+      cancelText: '取消',
+      danger: true,
+    });
+    if (!okRestoreLocal) {
       return;
     }
 
@@ -400,6 +432,37 @@ export function AdminPanelPage() {
     }
   };
 
+  const formatToday = () => {
+    const t = new Date();
+    return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+  };
+
+  // 挑战是否允许管理员添加参与者：仅进行中且未封档
+  const canAddParticipant = (ch: Challenge, status: EffectiveStatus) =>
+    status === 'active' && !ch.isBlocked;
+
+  const handleAddParticipant = async (challengeId: string) => {
+    if (!addParticipantData.participantId) {
+      toast('请先选择参与者', 'error');
+      return;
+    }
+    const selected = participants.find((p) => p.id === addParticipantData.participantId);
+    const ok = await joinChallenge(
+      challengeId,
+      addParticipantData.participantId,
+      selected?.name || addParticipantData.participantId,
+      addParticipantData.stake,
+      addParticipantData.side,
+    );
+    if (ok) {
+      toast('已添加参与者', 'success');
+      setAddingToChallenge(null);
+      setAddParticipantData({ participantId: '', stake: 100, side: 'support' });
+    } else {
+      toast('添加失败：挑战可能已封档、已结束或已过期', 'error');
+    }
+  };
+
   const getStatusText = (status: EffectiveStatus) => {
     switch (status) {
       case 'active':
@@ -451,7 +514,7 @@ export function AdminPanelPage() {
   const statCards = [
     { icon: Trophy, label: '挑战总数', value: String(stats.total) },
     { icon: Activity, label: '进行中', value: String(stats.active) },
-    { icon: Users, label: '参与者', value: String(stats.participants) },
+    { icon: Users, label: '参与次数', value: String(stats.participants) },
     { icon: Wallet, label: '总押注', value: `¥${stats.stake.toLocaleString()}` },
   ];
 
@@ -610,9 +673,12 @@ export function AdminPanelPage() {
                         </button>
 
                         {isExpanded && (
-                          <div className="px-4 pb-4 space-y-4 border-t border-[var(--line)]">
+                          <div className="px-4 pb-4 divide-y divide-[var(--line)] border-t border-[var(--line)]">
+
+                            {/* 挑战信息 */}
+                            <section className="pt-4 pb-4">
                             {editingChallenge === challenge.id ? (
-                              <div className="space-y-4 pt-4">
+                              <div className="space-y-4">
                                 <div className="flex items-center justify-between">
                                   <h3 className="text-lg font-bold">编辑挑战</h3>
                                   <IconButton label="关闭" variant="ghost" size="sm" onClick={() => setEditingChallenge(null)}>
@@ -700,22 +766,97 @@ export function AdminPanelPage() {
                                 </Button>
                               </div>
                             ) : (
-                              <div className="pt-4 space-y-4">
-                                <p className="text-[var(--muted)] text-sm">{challenge.goal}</p>
-
-                                <div className="flex items-center gap-5 text-sm">
-                                  <span className="text-[var(--muted)]">
-                                    通赔：<span className="text-[var(--text)] font-semibold">{challenge.maxPayout}</span>
-                                  </span>
-                                  <span className="text-[var(--muted)]">
-                                    底仓：<span className="text-[var(--text)] font-semibold">{challenge.minStake}</span>
-                                  </span>
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  <h3 className="text-sm font-medium text-[var(--muted)] mb-1">挑战信息</h3>
+                                  <p className="text-[var(--muted)] text-sm whitespace-pre-line">{challenge.goal}</p>
+                                  <div className="flex items-center gap-5 text-sm mt-2">
+                                    <span className="text-[var(--muted)]">
+                                      通赔：<span className="text-[var(--text)] font-semibold">{challenge.maxPayout}</span>
+                                    </span>
+                                    <span className="text-[var(--muted)]">
+                                      底仓：<span className="text-[var(--text)] font-semibold">{challenge.minStake}</span>
+                                    </span>
+                                  </div>
                                 </div>
+                                <Button variant="secondary" size="sm" onClick={() => startEdit(challenge)} className="flex-shrink-0">
+                                  <Edit2 className="w-4 h-4" />
+                                  编辑
+                                </Button>
+                              </div>
+                            )}
+                            </section>
 
-                                {challenge.participants.length > 0 && (
-                                  <div>
-                                    <h4 className="text-sm font-medium text-[var(--muted)] mb-3">参与者列表</h4>
-                                    <div className="space-y-2">
+                                {/* 参与者 */}
+                                <section className="py-4">
+                                  <div className="flex items-center justify-between mb-3">
+                                    <h3 className="text-sm font-medium text-[var(--muted)]">参与者 · {challenge.participants.length} 人</h3>
+                                    {canAddParticipant(challenge, effectiveStatus) && (
+                                      <Button variant="secondary" size="sm" onClick={() => setAddingToChallenge(challenge.id)}>
+                                        <UserPlus className="w-4 h-4" />
+                                        添加参与者
+                                      </Button>
+                                    )}
+                                  </div>
+
+                                  {canAddParticipant(challenge, effectiveStatus) && addingToChallenge === challenge.id && (
+                                    <div className="p-3 mb-3 bg-[var(--surface-2)] border border-[var(--line)] rounded-xl space-y-2.5">
+                                      <Select
+                                        value={addParticipantData.participantId}
+                                        onChange={(e) => setAddParticipantData({ ...addParticipantData, participantId: e.target.value })}
+                                        className="w-full"
+                                      >
+                                        <option value="">-- 选择参与者 --</option>
+                                        {participants.map((p) => (
+                                          <option key={p.id} value={p.id} disabled={!p.isActive}>
+                                            {p.name}{!p.isActive ? '（已停用）' : ''}
+                                          </option>
+                                        ))}
+                                      </Select>
+                                      <div className="grid grid-cols-2 gap-2">
+                                        <Input
+                                          type="number"
+                                          min="100"
+                                          value={addParticipantData.stake}
+                                          onChange={(e) => setAddParticipantData({ ...addParticipantData, stake: Number(e.target.value) })}
+                                          placeholder="金额"
+                                        />
+                                        <Select
+                                          value={addParticipantData.side}
+                                          onChange={(e) => setAddParticipantData({ ...addParticipantData, side: e.target.value as 'support' | 'oppose' })}
+                                        >
+                                          <option value="support">白方</option>
+                                          <option value="oppose">黑方</option>
+                                        </Select>
+                                      </div>
+                                      <div className="flex gap-2">
+                                        <Button variant="primary" size="sm" fullWidth onClick={() => handleAddParticipant(challenge.id)}>
+                                          确认添加
+                                        </Button>
+                                        <Button variant="secondary" size="sm" onClick={() => setAddingToChallenge(null)}>
+                                          取消
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {challenge.participants.length === 0 && (
+                                    <div className="text-center py-6 bg-[var(--surface-2)] border border-dashed border-[var(--line)] rounded-xl">
+                                      <p className="text-[var(--faint)] text-sm">暂无参与者</p>
+                                      {canAddParticipant(challenge, effectiveStatus) && (
+                                        <Button variant="secondary" size="sm" className="mt-3" onClick={() => setAddingToChallenge(challenge.id)}>
+                                          <UserPlus className="w-4 h-4" />
+                                          添加参与者
+                                        </Button>
+                                      )}
+                                      {!canAddParticipant(challenge, effectiveStatus) && (
+                                        <p className="text-[var(--faint)] text-xs mt-2">挑战已封档或已结束，无法添加参与者</p>
+                                      )}
+                                    </div>
+                                  )}
+
+                                  {challenge.participants.length > 0 && (
+                                  <div className="space-y-2">
                                       {challenge.participants.map((participant) => {
                                         const isEditing =
                                           editingParticipant?.challengeId === challenge.id &&
@@ -809,9 +950,14 @@ export function AdminPanelPage() {
                                                     variant="danger"
                                                     size="sm"
                                                     onClick={async () => {
-                                                      if (confirm(`确定要删除参与者「${participant.participantName}」吗？此操作不可撤销。`)) {
-                                                        await deleteParticipant(challenge.id, participant.id);
-                                                      }
+                                                      const ok = await confirm({
+                                                        title: '删除参与者',
+                                                        message: `确定要删除参与者「${participant.participantName}」吗？此操作不可撤销。`,
+                                                        confirmText: '删除',
+                                                        cancelText: '取消',
+                                                        danger: true,
+                                                      });
+                                                      if (ok) await deleteParticipant(challenge.id, participant.id);
                                                     }}
                                                   >
                                                     <UserX className="w-4 h-4" />
@@ -823,60 +969,66 @@ export function AdminPanelPage() {
                                         );
                                       })}
                                     </div>
-                                  </div>
-                                )}
+                                  )}
+                                  </section>
 
-                                <div className="flex flex-wrap gap-2">
-                                  <Button variant="secondary" size="sm" onClick={() => startEdit(challenge)}>
-                                    <Edit2 className="w-4 h-4" />
-                                    编辑
-                                  </Button>
-                                  {challenge.status !== 'completed' && (
-                                    <Button
-                                      variant={challenge.isBlocked ? 'success' : 'danger'}
-                                      size="sm"
-                                      onClick={async () => { await toggleBlock(challenge.id); }}
-                                    >
-                                      {challenge.isBlocked ? (
+                                  {/* 操作 */}
+                                  <section className="py-4">
+                                    <div className="flex flex-wrap gap-2">
+                                      {challenge.status !== 'completed' && (
+                                        <Button
+                                          variant={challenge.isBlocked ? 'success' : 'danger'}
+                                          size="sm"
+                                          onClick={async () => { await toggleBlock(challenge.id); }}
+                                        >
+                                          {challenge.isBlocked ? (
+                                            <>
+                                              <Unlock className="w-4 h-4" />
+                                              解除封档
+                                            </>
+                                          ) : (
+                                            <>
+                                              <Lock className="w-4 h-4" />
+                                              封档（禁止参与）
+                                            </>
+                                          )}
+                                        </Button>
+                                      )}
+                                      {(effectiveStatus === 'active' || effectiveStatus === 'pending') && (
                                         <>
-                                          <Unlock className="w-4 h-4" />
-                                          解除封档
-                                        </>
-                                      ) : (
-                                        <>
-                                          <Lock className="w-4 h-4" />
-                                          封档（禁止参与）
+                                          <Button variant="success" size="sm" onClick={async () => { await setChallengeResult(challenge.id, 'success'); }}>
+                                            <CheckCircle className="w-4 h-4" />
+                                            标记挑战者成功
+                                          </Button>
+                                          <Button variant="danger" size="sm" onClick={async () => { await setChallengeResult(challenge.id, 'failed'); }}>
+                                            <X className="w-4 h-4" />
+                                            标记挑战者失败
+                                          </Button>
                                         </>
                                       )}
+                                    </div>
+                                  </section>
+
+                                  {/* 危险操作 */}
+                                  <section className="pt-4 border-t border-dashed border-[var(--bad-line)]">
+                                    <Button
+                                      variant="danger"
+                                      size="sm"
+                                      onClick={async () => {
+                                        const ok = await confirm({
+                                          title: '删除挑战',
+                                          message: `确定要删除挑战「${challenge.theme}」吗？此操作不可撤销，所有参与者与记录将一并删除。`,
+                                          confirmText: '删除',
+                                          cancelText: '取消',
+                                          danger: true,
+                                        });
+                                        if (ok) await deleteChallenge(challenge.id);
+                                      }}
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                      删除挑战
                                     </Button>
-                                  )}
-                                  {(effectiveStatus === 'active' || effectiveStatus === 'pending') && (
-                                    <>
-                                      <Button variant="success" size="sm" onClick={async () => { await setChallengeResult(challenge.id, 'success'); }}>
-                                        <CheckCircle className="w-4 h-4" />
-                                        标记挑战者成功
-                                      </Button>
-                                      <Button variant="danger" size="sm" onClick={async () => { await setChallengeResult(challenge.id, 'failed'); }}>
-                                        <X className="w-4 h-4" />
-                                        标记挑战者失败
-                                      </Button>
-                                    </>
-                                  )}
-                                  <Button
-                                    variant="danger"
-                                    size="sm"
-                                    onClick={async () => {
-                                      if (confirm(`确定要删除挑战「${challenge.theme}」吗？此操作不可撤销。`)) {
-                                        await deleteChallenge(challenge.id);
-                                      }
-                                    }}
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                    删除挑战
-                                  </Button>
-                                </div>
-                              </div>
-                            )}
+                                  </section>
                           </div>
                         )}
                       </Card>
