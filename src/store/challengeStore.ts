@@ -146,7 +146,7 @@ interface ChallengeStore {
   addEssay: (essay: Omit<Essay, 'id' | 'createdAt'>) => Promise<void>;
   deleteEssay: (essayId: string) => Promise<void>;
   loadParticipants: () => Promise<void>;
-  addParticipantItem: (name: string, avatar?: string) => Promise<boolean>;
+  addParticipantItem: (name: string, avatar?: string) => Promise<ParticipantItem | null>;
   updateParticipantItem: (id: string, updates: Partial<ParticipantItem>) => Promise<boolean>;
   deleteParticipantItem: (id: string) => Promise<boolean>;
 }
@@ -519,17 +519,20 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
         saveLocalParticipants(updated);
         return { participants: updated };
       });
-      return true;
+      return newItem;
     }
 
     try {
       const token = loadToken();
       const result = await http.post<ParticipantItem>('/participants', { name, avatar }, token);
-      set((s) => ({ participants: [...s.participants, result] }));
-      return true;
+      const item: ParticipantItem = result || newItem;
+      // 后端未返回 id 时使用本地生成的 id
+      if (!item.id) item.id = newItem.id;
+      set((s) => ({ participants: [...s.participants, item] }));
+      return item;
     } catch (e) {
       console.error('Add participant failed:', e);
-      return false;
+      return null;
     }
   },
 

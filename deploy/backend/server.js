@@ -236,20 +236,9 @@ const essayUpload = multer({
   },
 });
 
-// 参与者头像上传配置
-const participantStorage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    fs.mkdirSync(PARTICIPANT_UPLOAD_DIR, { recursive: true });
-    cb(null, PARTICIPANT_UPLOAD_DIR);
-  },
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname) || '.jpg';
-    const name = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`;
-    cb(null, name);
-  },
-});
+// 参与者头像上传配置（使用内存存储，便于压缩）
 const participantUpload = multer({
-  storage: participantStorage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 2 * 1024 * 1024 }, // 2MB
   fileFilter: (_req, file, cb) => {
     if (!file.mimetype.startsWith('image/')) return cb(new Error('Only images allowed'));
@@ -623,32 +612,44 @@ app.delete('/api/participants/:id', requireToken, (req, res) => {
 
 // 上传参与者头像（需要 Token）
 app.post('/api/participants/:id/avatar', requireToken, participantUpload.single('image'), async (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'no file' });
-  
+  if (!req.file || !req.file.buffer) return res.status(400).json({ error: 'no file' });
+
   try {
     const participants = db.participants || [];
     const idx = participants.findIndex((p) => p.id === req.params.id);
-    if (idx === -1) return res.status(404).json({ error: 'not found' });
-    
-    const originalPath = req.file.path;
-    const originalSize = req.file.size;
-    
+    if (idx === -1) return res.status(404).json({ error: 'participant not found' });
+
+    const ext = path.extname(req.file.originalname) || '.jpg';
+    const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`;
+    const targetPath = path.join(PARTICIPANT_UPLOAD_DIR, filename);
+
+    fs.mkdirSync(PARTICIPANT_UPLOAD_DIR, { recursive: true });
+
+    const originalSize = req.file.buffer.length;
     const compressedBuffer = await compressImage(req.file.buffer, 512, 80);
-    const compressedSize = compressedBuffer.length;
-    
-    if (compressedSize < originalSize) {
-      fs.writeFileSync(originalPath, compressedBuffer);
+    fs.writeFileSync(targetPath, compressedBuffer);
+    console.log(`[participant-avatar] ${req.params.id} ${(originalSize / 1024).toFixed(1)}KB -> ${(compressedBuffer.length / 1024).toFixed(1)}KB`);
+
+    // 删除旧头像文件
+    const oldAvatar = participants[idx].avatar;
+    if (oldAvatar) {
+      try {
+        const oldPath = path.join(PARTICIPANT_UPLOAD_DIR, path.basename(oldAvatar));
+        if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+      } catch (e) {
+        console.error('Failed to remove old avatar:', e);
+      }
     }
-    
-    const avatarUrl = `/participant-uploads/${req.file.filename}`;
+
+    const avatarUrl = `/participant-uploads/${filename}`;
     participants[idx].avatar = avatarUrl;
     participants[idx].updatedAt = Date.now();
     saveDB(db);
-    
-    res.json({ url: avatarUrl });
+
+    res.json({ ok: true, url: avatarUrl });
   } catch (error) {
     console.error('Avatar upload error:', error);
-    res.json({ url: `/participant-uploads/${req.file.filename}` });
+    res.status(500).json({ error: error.message || 'upload failed' });
   }
 });
 

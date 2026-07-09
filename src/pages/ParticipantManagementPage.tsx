@@ -2,84 +2,178 @@ import { useState } from 'react';
 import { Plus, Edit2, Trash2, Check, X, Upload, User } from 'lucide-react';
 import { useChallengeStore, loadToken } from '../store/challengeStore';
 import { ParticipantItem } from '../types';
-import { buttonClassName, Modal, Input, Checkbox } from '../components/ui';
+import { buttonClassName, Modal, Input, Checkbox, useToast } from '../components/ui';
 
 export default function ParticipantManagementPage() {
-  const { participants, addParticipantItem, updateParticipantItem, deleteParticipantItem, loadParticipants } = useChallengeStore();
+  const { toast } = useToast();
+  const { participants, addParticipantItem, updateParticipantItem, deleteParticipantItem } = useChallengeStore();
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingItem, setEditingItem] = useState<ParticipantItem | null>(null);
-  const [formData, setFormData] = useState({ name: '', avatar: '', isActive: true });
-  const [uploading, setUploading] = useState(false);
 
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // 新增表单：name + 已创建后获得的 participantId（用于上传头像）
+  const [addForm, setAddForm] = useState({ name: '', avatar: '', createdId: '' as string });
+  const [addUploading, setAddUploading] = useState(false);
+
+  // 编辑表单
+  const [editForm, setEditForm] = useState({ name: '', avatar: '', isActive: true });
+  const [editUploading, setEditUploading] = useState(false);
+
+  // 上传头像到指定 id
+  const uploadAvatar = async (id: string, file: File): Promise<string | null> => {
+    const token = loadToken();
+    const fd = new FormData();
+    fd.append('image', file);
+    const res = await fetch(`/api/participants/${id}/avatar`, {
+      method: 'POST',
+      headers: token ? { 'x-api-token': token } : {},
+      body: fd,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+    const data = await res.json();
+    return data.url || null;
+  };
+
+  // 新增弹窗内上传：若还没有 id 则先创建一条空记录以拿到 id，再上传头像
+  const handleAddUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    e.target.value = '';
 
-    setUploading(true);
+    const name = addForm.name.trim();
+    if (!name) {
+      toast('请先填写姓名', 'error');
+      return;
+    }
+
+    setAddUploading(true);
     try {
-      const token = loadToken();
-      const formData = new FormData();
-      formData.append('image', file);
-
-      const res = await fetch(`/api/participants/${editingItem?.id || 'temp'}/avatar`, {
-        method: 'POST',
-        headers: token ? { 'x-api-token': token } : {},
-        body: formData,
-      });
-
-      const data = await res.json();
-      if (data.url) {
-        setFormData((prev) => ({ ...prev, avatar: data.url }));
+      let pid = addForm.createdId;
+      if (!pid) {
+        const created = await addParticipantItem(name);
+        if (!created) {
+          toast('创建参与者失败，请重试', 'error');
+          return;
+        }
+        pid = created.id;
+        setAddForm((prev) => ({ ...prev, createdId: pid }));
       }
-    } catch (err) {
+      const url = await uploadAvatar(pid, file);
+      if (url) {
+        setAddForm((prev) => ({ ...prev, avatar: url }));
+        toast('头像上传成功', 'success');
+      } else {
+        toast('头像上传失败：未返回地址', 'error');
+      }
+    } catch (err: any) {
       console.error('Upload failed:', err);
+      toast(`头像上传失败：${err?.message || '未知错误'}`, 'error');
     } finally {
-      setUploading(false);
+      setAddUploading(false);
     }
   };
 
   const handleAdd = async () => {
-    if (!formData.name.trim()) return;
-    const success = await addParticipantItem(formData.name.trim(), formData.avatar || undefined);
-    if (success) {
-      setShowAddModal(false);
-      setFormData({ name: '', avatar: '', isActive: true });
+    const name = addForm.name.trim();
+    if (!name) {
+      toast('请填写姓名', 'error');
+      return;
+    }
+    if (addForm.createdId) {
+      const ok = await updateParticipantItem(addForm.createdId, { name, avatar: addForm.avatar || undefined });
+      if (ok) {
+        toast('新增成功', 'success');
+        setShowAddModal(false);
+        setAddForm({ name: '', avatar: '', createdId: '' });
+      } else {
+        toast('新增失败，请重试', 'error');
+      }
+    } else {
+      const created = await addParticipantItem(name, addForm.avatar || undefined);
+      if (created) {
+        toast('新增成功', 'success');
+        setShowAddModal(false);
+        setAddForm({ name: '', avatar: '', createdId: '' });
+      } else {
+        toast('新增失败，请重试', 'error');
+      }
+    }
+  };
+
+  // 编辑弹窗内上传
+  const handleEditUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !editingItem) return;
+    e.target.value = '';
+    setEditUploading(true);
+    try {
+      const url = await uploadAvatar(editingItem.id, file);
+      if (url) {
+        setEditForm((prev) => ({ ...prev, avatar: url }));
+        await updateParticipantItem(editingItem.id, { avatar: url });
+        toast('头像上传成功', 'success');
+      } else {
+        toast('头像上传失败：未返回地址', 'error');
+      }
+    } catch (err: any) {
+      console.error('Upload failed:', err);
+      toast(`头像上传失败：${err?.message || '未知错误'}`, 'error');
+    } finally {
+      setEditUploading(false);
     }
   };
 
   const handleEdit = async () => {
-    if (!editingItem || !formData.name.trim()) return;
-    const success = await updateParticipantItem(editingItem.id, {
-      name: formData.name.trim(),
-      avatar: formData.avatar || undefined,
-      isActive: formData.isActive,
+    if (!editingItem) return;
+    if (!editForm.name.trim()) {
+      toast('请填写姓名', 'error');
+      return;
+    }
+    const ok = await updateParticipantItem(editingItem.id, {
+      name: editForm.name.trim(),
+      avatar: editForm.avatar || undefined,
+      isActive: editForm.isActive,
     });
-    if (success) {
+    if (ok) {
+      toast('保存成功', 'success');
       setShowEditModal(false);
       setEditingItem(null);
-      setFormData({ name: '', avatar: '', isActive: true });
+    } else {
+      toast('保存失败，请重试', 'error');
     }
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm('确定要删除这个参与者吗？已参与的挑战记录将被标记为"已删除"。')) return;
-    await deleteParticipantItem(id);
+    const ok = await deleteParticipantItem(id);
+    if (ok) toast('删除成功', 'success');
+    else toast('删除失败，请重试', 'error');
   };
 
   const openEdit = (item: ParticipantItem) => {
     setEditingItem(item);
-    setFormData({ name: item.name, avatar: item.avatar || '', isActive: item.isActive });
+    setEditForm({ name: item.name, avatar: item.avatar || '', isActive: item.isActive });
     setShowEditModal(true);
+  };
+
+  const closeAdd = () => {
+    setShowAddModal(false);
+    setAddForm({ name: '', avatar: '', createdId: '' });
   };
 
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold text-[var(--text)]">参与者管理</h2>
+        <div>
+          <h2 className="text-xl font-bold text-[var(--text)]">参与者管理</h2>
+          <p className="text-[var(--faint)] text-sm mt-1">共 {participants.length} 人</p>
+        </div>
         <button
           onClick={() => {
-            setFormData({ name: '', avatar: '', isActive: true });
+            setAddForm({ name: '', avatar: '', createdId: '' });
             setShowAddModal(true);
           }}
           className={buttonClassName({ variant: 'primary' })}
@@ -159,14 +253,14 @@ export default function ParticipantManagementPage() {
         </table>
       </div>
 
-      <Modal open={showAddModal} onClose={() => setShowAddModal(false)} title="新增参与者">
+      <Modal open={showAddModal} onClose={closeAdd} title="新增参与者">
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-[var(--text)] mb-1.5">姓名</label>
+            <label className="block text-sm font-medium text-[var(--text)] mb-1.5">姓名 *</label>
             <Input
-              value={formData.name}
-              onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
-              placeholder="请输入姓名"
+              value={addForm.name}
+              onChange={(e) => setAddForm((prev) => ({ ...prev, name: e.target.value }))}
+              placeholder="请输入姓名（建议1-3个字）"
             />
           </div>
           <div>
@@ -174,29 +268,35 @@ export default function ParticipantManagementPage() {
             <input
               type="file"
               accept="image/*"
-              onChange={handleUpload}
+              onChange={handleAddUpload}
               className="hidden"
               id="add-avatar"
+              disabled={addUploading}
             />
             <button
               type="button"
               onClick={() => document.getElementById('add-avatar')?.click()}
+              disabled={addUploading}
               className={buttonClassName({ variant: 'secondary' })}
             >
               <Upload className="w-4 h-4" />
-              上传头像
+              {addUploading ? '上传中…' : addForm.avatar ? '重新上传' : '上传头像'}
             </button>
-            {formData.avatar && (
-              <div className="mt-2">
-                <img src={formData.avatar} alt="预览" className="w-16 h-16 rounded-full object-cover" />
+            {addUploading && (
+              <span className="ml-2 text-xs text-[var(--muted)]">正在压缩并上传…</span>
+            )}
+            {addForm.avatar && !addUploading && (
+              <div className="mt-2 flex items-center gap-2">
+                <img src={addForm.avatar} alt="预览" className="w-16 h-16 rounded-full object-cover border border-[var(--line)]" />
+                <span className="text-xs text-[var(--ok)]">已上传</span>
               </div>
             )}
+            {!addForm.avatar && !addUploading && addForm.createdId && (
+              <p className="mt-2 text-xs text-[var(--muted)]">头像可选，保存后仍可编辑补充</p>
+            )}
           </div>
-          <div className="flex justify-end gap-2 pt-4">
-            <button
-              onClick={() => setShowAddModal(false)}
-              className={buttonClassName({ variant: 'ghost' })}
-            >
+          <div className="flex justify-end gap-2 pt-4 border-t border-[var(--line)]">
+            <button onClick={closeAdd} className={buttonClassName({ variant: 'ghost' })}>
               取消
             </button>
             <button onClick={handleAdd} className={buttonClassName({ variant: 'primary' })}>
@@ -209,10 +309,10 @@ export default function ParticipantManagementPage() {
       <Modal open={showEditModal} onClose={() => setShowEditModal(false)} title="编辑参与者">
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-[var(--text)] mb-1.5">姓名</label>
+            <label className="block text-sm font-medium text-[var(--text)] mb-1.5">姓名 *</label>
             <Input
-              value={formData.name}
-              onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
+              value={editForm.name}
+              onChange={(e) => setEditForm((prev) => ({ ...prev, name: e.target.value }))}
               placeholder="请输入姓名"
             />
           </div>
@@ -221,45 +321,53 @@ export default function ParticipantManagementPage() {
             <input
               type="file"
               accept="image/*"
-              onChange={handleUpload}
+              onChange={handleEditUpload}
               className="hidden"
               id="edit-avatar"
+              disabled={editUploading}
             />
             <button
               type="button"
               onClick={() => document.getElementById('edit-avatar')?.click()}
-              disabled={uploading}
+              disabled={editUploading}
               className={buttonClassName({ variant: 'secondary' })}
             >
               <Upload className="w-4 h-4" />
-              {uploading ? '上传中...' : '上传头像'}
+              {editUploading ? '上传中…' : '重新上传'}
             </button>
-            {formData.avatar && (
+            {editUploading && (
+              <span className="ml-2 text-xs text-[var(--muted)]">正在压缩并上传…</span>
+            )}
+            {editForm.avatar && (
               <div className="mt-2 flex items-center gap-2">
-                <img src={formData.avatar} alt="预览" className="w-16 h-16 rounded-full object-cover" />
+                <img src={editForm.avatar} alt="预览" className="w-16 h-16 rounded-full object-cover border border-[var(--line)]" />
                 <button
-                  onClick={() => setFormData((prev) => ({ ...prev, avatar: '' }))}
+                  onClick={async () => {
+                    if (!editingItem) return;
+                    const ok = await updateParticipantItem(editingItem.id, { avatar: '' });
+                    if (ok) {
+                      setEditForm((prev) => ({ ...prev, avatar: '' }));
+                      toast('头像已移除', 'success');
+                    }
+                  }}
                   className={buttonClassName({ variant: 'danger', size: 'sm' })}
                 >
                   <X className="w-4 h-4" />
-                  删除
+                  移除
                 </button>
               </div>
             )}
           </div>
           <div>
             <Checkbox
-              checked={formData.isActive}
-              onChange={(checked) => setFormData((prev) => ({ ...prev, isActive: checked }))}
+              checked={editForm.isActive}
+              onChange={(checked) => setEditForm((prev) => ({ ...prev, isActive: checked }))}
             >
               启用
             </Checkbox>
           </div>
-          <div className="flex justify-end gap-2 pt-4">
-            <button
-              onClick={() => setShowEditModal(false)}
-              className={buttonClassName({ variant: 'ghost' })}
-            >
+          <div className="flex justify-end gap-2 pt-4 border-t border-[var(--line)]">
+            <button onClick={() => setShowEditModal(false)} className={buttonClassName({ variant: 'ghost' })}>
               取消
             </button>
             <button onClick={handleEdit} className={buttonClassName({ variant: 'primary' })}>

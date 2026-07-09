@@ -19,7 +19,7 @@ export function ParticipantGrid({ participants, selectedId, onSelect, disabledId
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-8 gap-2">
+      <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
         {shownParticipants.map((p) => {
           const isSelected = selectedId === p.id;
           const isDisabled = disabledIds.includes(p.id);
@@ -29,7 +29,7 @@ export function ParticipantGrid({ participants, selectedId, onSelect, disabledId
               key={p.id}
               onClick={() => !isDisabled && onSelect(p.id, p.name)}
               disabled={isDisabled}
-              className={`flex flex-col items-center gap-1.5 p-2 rounded-lg transition-all duration-200 ${
+              className={`flex flex-col items-center gap-1.5 p-2 rounded-lg transition-all duration-200 min-h-[80px] ${
                 isDisabled
                   ? 'opacity-40 cursor-not-allowed'
                   : isSelected
@@ -44,7 +44,7 @@ export function ParticipantGrid({ participants, selectedId, onSelect, disabledId
                   <User className="w-5 h-5 text-[var(--muted)]" />
                 )}
               </div>
-              <span className="text-xs text-[var(--text)] truncate w-full text-center leading-tight">
+              <span className="text-xs text-[var(--text)] w-full text-center leading-tight break-words line-clamp-2">
                 {p.name}
               </span>
             </button>

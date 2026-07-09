@@ -26,6 +26,8 @@ export function AdminPanelPage() {
   const updateParticipant = useChallengeStore((state) => state.updateParticipant);
   const deleteParticipant = useChallengeStore((state) => state.deleteParticipant);
   const deleteChallenge = useChallengeStore((state) => state.deleteChallenge);
+  const participants = useChallengeStore((state) => state.participants);
+  const loadParticipants = useChallengeStore((state) => state.loadParticipants);
 
   const [activeTab, setActiveTab] = useState<TabType>('challenges');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -48,6 +50,7 @@ export function AdminPanelPage() {
 
   const [editingParticipant, setEditingParticipant] = useState<{ challengeId: string; participant: Participant } | null>(null);
   const [editParticipantData, setEditParticipantData] = useState({
+    participantId: '',
     participantName: '',
     stake: 0,
     side: 'support' as 'support' | 'oppose',
@@ -369,6 +372,7 @@ export function AdminPanelPage() {
   const startEditParticipant = (challengeId: string, participant: Participant) => {
     setEditingParticipant({ challengeId, participant });
     setEditParticipantData({
+      participantId: participant.participantId || '',
       participantName: participant.participantName,
       stake: participant.stake,
       side: participant.side,
@@ -378,8 +382,11 @@ export function AdminPanelPage() {
 
   const saveParticipantEdit = async () => {
     if (editingParticipant) {
+      // 根据选中的 participantId 自动带出姓名
+      const selectedItem = participants.find((p) => p.id === editParticipantData.participantId);
       await updateParticipant(editingParticipant.challengeId, editingParticipant.participant.id, {
-        participantName: editParticipantData.participantName,
+        participantId: editParticipantData.participantId || undefined,
+        participantName: selectedItem?.name || editParticipantData.participantName,
         stake: editParticipantData.stake,
         side: editParticipantData.side,
         joinTime: editParticipantData.joinTime,
@@ -712,13 +719,18 @@ export function AdminPanelPage() {
                                           <div key={participant.id} className="flex items-center justify-between p-3 bg-[var(--surface-2)] rounded-xl gap-2">
                                             {isEditing ? (
                                               <div className="flex items-center gap-2 flex-wrap flex-1">
-                                                <Input
-                                                  type="text"
-                                                  value={editParticipantData.participantName}
-                                                  onChange={(e) => setEditParticipantData({ ...editParticipantData, participantName: e.target.value })}
-                                                  placeholder="姓名"
-                                                  className="flex-1 min-w-[120px]"
-                                                />
+                                                <Select
+                                                  value={editParticipantData.participantId}
+                                                  onChange={(e) => setEditParticipantData({ ...editParticipantData, participantId: e.target.value })}
+                                                  className="flex-1 min-w-[140px]"
+                                                >
+                                                  <option value="">-- 选择参与者 --</option>
+                                                  {participants.map((p) => (
+                                                    <option key={p.id} value={p.id} disabled={!p.isActive}>
+                                                      {p.name}{!p.isActive ? '（已停用）' : ''}
+                                                    </option>
+                                                  ))}
+                                                </Select>
                                                 <Input
                                                   type="number"
                                                   min="100"
@@ -751,10 +763,26 @@ export function AdminPanelPage() {
                                             ) : (
                                               <div className="flex items-center justify-between gap-2 flex-1">
                                                 <div className="flex items-center gap-2.5 flex-wrap">
-                                                  <div className="w-8 h-8 bg-gradient-to-br from-[var(--accent)] to-[var(--accent-deep)] rounded-full flex items-center justify-center text-white font-bold text-sm">
-                                                    {participant.participantName.charAt(0)}
-                                                  </div>
+                                                  {(() => {
+                                                    const linked = participant.participantId
+                                                      ? participants.find((p) => p.id === participant.participantId)
+                                                      : undefined;
+                                                    return (
+                                                      <div className="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-br from-[var(--accent)] to-[var(--accent-deep)] flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                                                        {linked?.avatar ? (
+                                                          <img src={linked.avatar} alt={participant.participantName} className="w-full h-full object-cover" />
+                                                        ) : (
+                                                          participant.participantName.charAt(0)
+                                                        )}
+                                                      </div>
+                                                    );
+                                                  })()}
                                                   <span className="text-white text-sm">{participant.participantName}</span>
+                                                  {participant.deleted && (
+                                                    <span className="px-2 py-0.5 text-xs font-medium rounded-full border bg-[var(--bad-soft)] text-[var(--bad)] border-[var(--bad-line)]">
+                                                      已删除
+                                                    </span>
+                                                  )}
                                                   <span className={`px-2 py-0.5 text-xs font-medium rounded-full border ${
                                                     participant.side === 'support'
                                                       ? 'bg-[var(--side-support)] text-[var(--side-support-text)] border-[var(--side-support-line)]'
