@@ -782,8 +782,8 @@ app.post('/api/challenges', requireToken, (req, res) => {
   res.status(201).json(newChallenge);
 });
 
-// 更新（需要 Token）
-app.put('/api/challenges/:id', requireToken, (req, res) => {
+// 更新（公开，任何人都能参与挑战）
+app.put('/api/challenges/:id', (req, res) => {
   const idx = db.challenges.findIndex((c) => c.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'not found' });
   const body = req.body || {};
