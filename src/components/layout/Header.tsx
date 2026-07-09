@@ -1,22 +1,16 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Plus, Shield, LogOut, Menu, X, Sun, Moon, Monitor } from 'lucide-react';
+import { Plus, Shield, LogOut, Menu, X, Sun, Moon } from 'lucide-react';
 import { useChallengeStore } from '../../store/challengeStore';
 import { buttonClassName, IconButton } from '../ui';
 import { useTheme } from '../../hooks/useTheme';
-
-const THEME_LABELS: Record<string, string> = {
-  dark: '深色模式',
-  light: '浅色模式',
-  system: '跟随系统',
-};
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
   const isAdminAuthenticated = useChallengeStore((state) => state.isAdminAuthenticated);
   const logoutAdmin = useChallengeStore((state) => state.logoutAdmin);
-  const { theme, cycle } = useTheme();
+  const { theme, toggle } = useTheme();
 
   const handleLogout = () => {
     logoutAdmin();
@@ -38,10 +32,8 @@ export function Header() {
 
         {/* 桌面端 */}
         <div className="hidden lg:flex items-center gap-2">
-          <IconButton label={THEME_LABELS[theme]} size="sm" onClick={cycle}>
-            {theme === 'dark' && <Moon className="w-5 h-5" />}
-            {theme === 'light' && <Sun className="w-5 h-5" />}
-            {theme === 'system' && <Monitor className="w-5 h-5" />}
+          <IconButton label={theme === 'dark' ? '切换到浅色模式' : '切换到深色模式'} size="sm" onClick={toggle}>
+            {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
           </IconButton>
           <Link to={adminHref} className={buttonClassName({ variant: 'ghost' })}>
             <Shield className="w-4 h-4" />
@@ -55,10 +47,8 @@ export function Header() {
 
         {/* 移动端 */}
         <div className="flex items-center gap-1 lg:hidden">
-          <IconButton label={THEME_LABELS[theme]} size="sm" onClick={cycle}>
-            {theme === 'dark' && <Moon className="w-5 h-5" />}
-            {theme === 'light' && <Sun className="w-5 h-5" />}
-            {theme === 'system' && <Monitor className="w-5 h-5" />}
+          <IconButton label={theme === 'dark' ? '切换到浅色模式' : '切换到深色模式'} size="sm" onClick={toggle}>
+            {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
           </IconButton>
           <IconButton
             label={mobileMenuOpen ? '关闭菜单' : '打开菜单'}

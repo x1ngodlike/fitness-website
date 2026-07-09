@@ -173,9 +173,9 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 /* —— 浅色模式 —— */
 :root.light {
-  --bg: oklch(0.985 0.008 60);
-  --surface: oklch(0.998 0.004 60);
-  --surface-2: oklch(0.965 0.012 60);
+  --bg: oklch(0.995 0.002 60);
+  --surface: oklch(1 0 0);
+  --surface-2: oklch(0.97 0.004 60);
   --line: rgba(180, 120, 60, 0.1);
   --line-strong: rgba(160, 100, 40, 0.18);
   --text: oklch(0.21 0.006 60);
