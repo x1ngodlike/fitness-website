@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Edit2, CheckCircle, X, Lock, Unlock, Users, Save, Trash2, UserX, Download, Upload, AlertTriangle, ChevronDown, ChevronRight, Settings, Trophy, Globe, MoreVertical, Plus, LogOut, FlaskConical, Rocket, Activity, Wallet, Database } from 'lucide-react';
 import { useChallengeStore, loadToken } from '../store/challengeStore';
 import { Challenge, Participant, ParticipantItem } from '../types';
-import { Button, IconButton, Input, Textarea, Select, Tabs, Card, Modal, Badge, buttonClassName, Checkbox } from '../components/ui';
+import { Button, IconButton, Input, Textarea, Select, Tabs, Card, Badge, buttonClassName, Checkbox } from '../components/ui';
 import ParticipantManagementPage from './ParticipantManagementPage';
 
 type EffectiveStatus = 'active' | 'pending' | 'completed';
@@ -59,7 +59,6 @@ export function AdminPanelPage() {
 
   const [backupMessage, setBackupMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isRestoring, setIsRestoring] = useState(false);
-  const [showServerBackups, setShowServerBackups] = useState(false);
   const [serverBackups, setServerBackups] = useState<Array<{ filename: string; size: number; createdAt: string }>>([]);
   const [isLoadingBackups, setIsLoadingBackups] = useState(false);
   const init = useChallengeStore((state) => state.init);
@@ -118,6 +117,12 @@ export function AdminPanelPage() {
     }
     setIsLoadingBackups(false);
   };
+
+  useEffect(() => {
+    if (activeTab === 'backup' && isAdminAuthenticated) {
+      loadServerBackups();
+    }
+  }, [activeTab, isAdminAuthenticated]);
 
   const createServerBackup = async () => {
     const token = localStorage.getItem('challenge-api-token');
@@ -935,7 +940,7 @@ export function AdminPanelPage() {
               <div className="space-y-5">
                 <div>
                   <h2 className="font-display text-xl font-bold">备份恢复</h2>
-                  <p className="text-[var(--faint)] text-sm mt-1">管理数据备份与恢复</p>
+                  <p className="text-[var(--faint)] text-sm mt-1">导出、导入和恢复你的挑战数据</p>
                 </div>
 
                 {backupMessage && (
@@ -948,61 +953,102 @@ export function AdminPanelPage() {
                   </div>
                 )}
 
-                {/* 数据备份与恢复 */}
+                {/* 本地备份 */}
                 <Card padding="md">
-                  <div className="flex items-center gap-3 mb-5">
+                  <div className="flex items-center gap-3 mb-4">
                     <Database className="w-5 h-5 text-[var(--accent)]" />
-                    <h3 className="font-bold">数据备份与恢复</h3>
+                    <h3 className="font-bold">本地备份</h3>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <Button variant="primary" size="md" fullWidth onClick={handleBackup}>
+                      <Download className="w-4 h-4" />
+                      导出到本地文件
+                    </Button>
+                    <label className={`${buttonClassName({ variant: 'danger', size: 'md', fullWidth: true })} cursor-pointer`}>
+                      <Upload className="w-4 h-4" />
+                      从本地文件导入
+                      <input
+                        type="file"
+                        accept=".json"
+                        onChange={handleRestore}
+                        disabled={isRestoring}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                  <p className="text-[var(--faint)] text-xs mt-3">
+                    导出会把当前所有挑战数据下载为 JSON 文件；导入将覆盖当前全部数据。
+                  </p>
+                </Card>
+
+                {/* 服务器备份 */}
+                <Card padding="md">
+                  <div className="flex items-center justify-between gap-3 mb-4">
+                    <div className="flex items-center gap-3">
+                      <Database className="w-5 h-5 text-[var(--accent)]" />
+                      <h3 className="font-bold">服务器备份</h3>
+                    </div>
+                    <Button variant="primary" size="sm" onClick={createServerBackup}>
+                      <Plus className="w-4 h-4" />
+                      立即创建
+                    </Button>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="p-4 bg-[var(--surface-2)] border border-[var(--line)] rounded-xl">
-                      <h4 className="text-sm font-medium text-[var(--muted)] mb-3">本地操作</h4>
-                      <div className="flex flex-col gap-2">
-                        <Button variant="info" size="md" fullWidth onClick={handleBackup}>
-                          <Download className="w-4 h-4" />
-                          下载备份到本地
-                        </Button>
-                        <label className={`${buttonClassName({ variant: 'purple', size: 'md' })} cursor-pointer`}>
-                          <Upload className="w-4 h-4" />
-                          从本地文件恢复
-                          <input
-                            type="file"
-                            accept=".json"
-                            onChange={handleRestore}
-                            disabled={isRestoring}
-                            className="hidden"
-                          />
-                        </label>
-                      </div>
-                    </div>
-
-                    <div className="p-4 bg-[var(--surface-2)] border border-[var(--line)] rounded-xl">
-                      <h4 className="text-sm font-medium text-[var(--muted)] mb-3">服务器操作</h4>
-                      <div className="flex flex-col gap-2">
-                        <Button variant="info" size="md" fullWidth onClick={createServerBackup}>
-                          <Download className="w-4 h-4" />
-                          创建服务器备份
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          size="md"
-                          fullWidth
-                          onClick={() => { setShowServerBackups(true); loadServerBackups(); }}
-                        >
-                          <Upload className="w-4 h-4" />
-                          从服务器备份恢复
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 p-3 bg-[var(--accent-soft)] border border-[var(--accent-line)] rounded-xl">
+                  <div className="mb-4 p-3 bg-[var(--accent-soft)] border border-[var(--accent-line)] rounded-xl">
                     <p className="text-[var(--accent)] text-sm flex items-center gap-2">
                       <AlertTriangle className="w-4 h-4" />
                       <span>自动备份：每天凌晨2点自动创建，保留最近7天</span>
                     </p>
                   </div>
+
+                  {isLoadingBackups ? (
+                    <div className="flex justify-center py-8">
+                      <div className="w-6 h-6 border-4 border-[var(--accent)] border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                  ) : serverBackups.length === 0 ? (
+                    <div className="text-center py-8">
+                      <p className="text-[var(--faint)]">暂无服务器备份</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {serverBackups.map((backup) => {
+                        const date = new Date(backup.createdAt);
+                        const dateStr = date.toLocaleString('zh-CN');
+                        const sizeStr = backup.size < 1024
+                          ? `${backup.size} B`
+                          : `${(backup.size / 1024).toFixed(1)} KB`;
+                        const isAuto = backup.filename.startsWith('backup-auto-');
+                        return (
+                          <div key={backup.filename} className="flex items-center justify-between p-3 bg-[var(--surface-2)] border border-[var(--line)] rounded-xl">
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-white text-sm font-medium truncate">{backup.filename}</span>
+                                <span className={`px-2 py-0.5 text-xs font-medium rounded-full border ${
+                                  isAuto
+                                    ? 'bg-[var(--side-support)] text-[var(--side-support-text)] border-[var(--side-support-line)]'
+                                    : 'bg-[var(--side-oppose)] text-[var(--side-oppose-text)] border-[var(--side-oppose-line)]'
+                                }`}>
+                                  {isAuto ? '自动' : '手动'}
+                                </span>
+                              </div>
+                              <p className="text-[var(--faint)] text-xs mt-1">{dateStr} | {sizeStr}</p>
+                            </div>
+                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                              <IconButton label="下载" variant="ghost" size="sm" onClick={() => downloadServerBackup(backup.filename)}>
+                                <Download className="w-4 h-4" />
+                              </IconButton>
+                              <IconButton label="恢复" variant="danger" size="sm" onClick={() => restoreFromServerBackup(backup.filename)}>
+                                <CheckCircle className="w-4 h-4" />
+                              </IconButton>
+                              <IconButton label="删除" variant="danger" size="sm" onClick={() => deleteServerBackup(backup.filename)}>
+                                <Trash2 className="w-4 h-4" />
+                              </IconButton>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </Card>
               </div>
             )}
@@ -1041,75 +1087,7 @@ export function AdminPanelPage() {
         </button>
       </nav>
 
-      {/* 服务器备份列表弹窗 */}
-      <Modal
-        open={showServerBackups}
-        onClose={() => setShowServerBackups(false)}
-        size="lg"
-        title="服务器备份管理"
-      >
-        <div className="mb-4 p-3 bg-[var(--accent-soft)] border border-[var(--accent-line)] rounded-xl">
-          <p className="text-[var(--accent)] text-sm flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4" />
-            <span>自动备份：每天凌晨2点创建，保留最近7天</span>
-          </p>
-          <p className="text-[var(--accent)] text-sm mt-1">手动备份：需手动创建，不会被自动清理</p>
-        </div>
-
-        {isLoadingBackups ? (
-          <div className="flex justify-center py-8">
-            <div className="w-6 h-6 border-4 border-[var(--accent)] border-t-transparent rounded-full animate-spin"></div>
-          </div>
-        ) : serverBackups.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-[var(--faint)]">暂无服务器备份</p>
-            <Button variant="info" size="sm" className="mt-4" onClick={createServerBackup}>
-              创建第一个备份
-            </Button>
-          </div>
-        ) : (
-          <div className="space-y-2 overflow-y-auto flex-1 scroll-slim">
-            {serverBackups.map((backup) => {
-              const date = new Date(backup.createdAt);
-              const dateStr = date.toLocaleString('zh-CN');
-              const sizeStr = backup.size < 1024
-                ? `${backup.size} B`
-                : `${(backup.size / 1024).toFixed(1)} KB`;
-
-              const isAuto = backup.filename.startsWith('backup-auto-');
-
-              return (
-                <div key={backup.filename} className="flex items-center justify-between p-3 bg-[var(--surface-2)] border border-[var(--line)] rounded-xl">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-white text-sm font-medium truncate">{backup.filename}</span>
-                      <span className={`px-2 py-0.5 text-xs font-medium rounded-full border ${
-                        isAuto
-                          ? 'bg-[var(--side-support)] text-[var(--side-support-text)] border-[var(--side-support-line)]'
-                          : 'bg-[var(--side-oppose)] text-[var(--side-oppose-text)] border-[var(--side-oppose-line)]'
-                      }`}>
-                        {isAuto ? '自动' : '手动'}
-                      </span>
-                    </div>
-                    <p className="text-[var(--faint)] text-xs mt-1">{dateStr} | {sizeStr}</p>
-                  </div>
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
-                    <IconButton label="下载" variant="ghost" size="sm" onClick={() => downloadServerBackup(backup.filename)}>
-                      <Download className="w-4 h-4" />
-                    </IconButton>
-                    <IconButton label="恢复" variant="success" size="sm" onClick={() => restoreFromServerBackup(backup.filename)}>
-                      <CheckCircle className="w-4 h-4" />
-                    </IconButton>
-                    <IconButton label="删除" variant="danger" size="sm" onClick={() => deleteServerBackup(backup.filename)}>
-                      <Trash2 className="w-4 h-4" />
-                    </IconButton>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </Modal>
+      {/* 服务器备份列表已内联到备份恢复页面，不再使用弹窗 */}
     </div>
   );
 }
